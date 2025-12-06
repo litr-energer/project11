@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Избранное — KeyVault</title>
+  <link rel="icon" href="assets/key-icon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
+        <div>
+          <h1>KeyVault</h1>
+          <p class="tag">Избранное</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button onclick="location.href='/'" class="btn ghost">Главная</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="info">
+      <h2>Избранные товары</h2>
+      <div id="favGrid" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+    </section>
+  </main>
+
+  <script>
+    // Attempt to read favorites and products from localStorage snapshot saved by main page (if any)
+    function formatPrice(p){ return (p===0)?'Free':p.toLocaleString('ru-RU')+' ₽'; }
+    const favs = JSON.parse(localStorage.getItem('kv_favs')||'[]');
+    const allProducts = (function(){
+      try{ return JSON.parse(localStorage.getItem('kv_products_snapshot')||'null') || null; }catch(e){return null;}
+    })();
+    // If there's no snapshot, try to build minimal view from fav ids using stored cart/listing fallbacks
+    function render(){
+      const wrap = document.getElementById('favGrid');
+      wrap.innerHTML = '';
+      if(favs.length === 0){ wrap.innerHTML = '<div style="color:var(--muted);padding:12px">Нет избранных товаров</div>'; return; }
+      // If we have a products snapshot, use it; otherwise create simple placeholders
+      favs.forEach(fid=>{
+        let p = null;
+        if(allProducts && Array.isArray(allProducts)) p = allProducts.find(x=>x.id===fid);
+        if(!p){
+          // try market or account lists stored (best-effort)
+          const markets = JSON.parse(localStorage.getItem('kv_market_listings')||'[]');
+          const accs = JSON.parse(localStorage.getItem('kv_account_listings')||'[]');
+          p = markets.find(x=>x.id===fid) || accs.find(x=>x.id===fid);
+        }
+        if(!p){
+          // fallback placeholder
+          p = { id: fid, title: fid, price: 0, thumb: 'https://via.placeholder.com/400x200?text=No+preview', tag: '' , desc: '' };
+        }
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="media"><img src="${p.thumb}" alt="${p.title}" style="width:100%;height:100%;object-fit:cover"></div>
+          <div>
+            <h3>${p.title}</h3>
+            <div class="meta"><span class="tag-pill">${p.tag||''}</span><span class="price">${formatPrice(p.price||0)}</span></div>
+            <p style="margin:8px 0 0;color:var(--muted);font-size:13px">${p.desc||''}</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" data-id="${p.id}" data-act="buy">Купить</button>
+            <button class="btn ghost" data-id="${p.id}" data-act="remove">Удалить</button>
+          </div>
+        `;
+        wrap.appendChild(card);
+      });
+    }
+
+    document.addEventListener('click',(e)=>{
+      const b = e.target.closest('[data-act]');
+      if(!b) return;
+      const act = b.dataset.act, id = b.dataset.id;
+      if(act === 'remove'){
+        const arr = JSON.parse(localStorage.getItem('kv_favs')||'[]');
+        const idx = arr.indexOf(id);
+        if(idx !== -1){ arr.splice(idx,1); localStorage.setItem('kv_favs', JSON.stringify(arr)); location.reload(); }
+      }
+      if(act === 'buy'){
+        // attempt to add to persistent cart structure
+        const cart = JSON.parse(localStorage.getItem('kv_cart')||'{}');
+        // create minimal item
+        const item = { id, title: id, price: 0, qty: 1, thumb: 'https://via.placeholder.com/160x90' };
+        cart[id] = cart[id] || item;
+        cart[id].qty = (cart[id].qty||0)+1;
+        localStorage.setItem('kv_cart', JSON.stringify(cart));
+        alert('Добавлено в корзину');
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

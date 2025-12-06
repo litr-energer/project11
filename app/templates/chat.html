@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Чат поддержки — KeyVault</title>
+  <link rel="icon" href="assets/key-icon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
+        <div>
+          <h1>KeyVault</h1>
+          <p class="tag">Чат поддержки</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button onclick="location.href='/'" class="btn ghost">Главная</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding-bottom:40px">
+    <section class="info" style="padding:8px;display:flex;flex-direction:column;height:60vh">
+      <div id="chatWindow" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="msg" placeholder="Напишите сообщение..." style="flex:1;padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+        <button id="send" class="btn primary">Отправить</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function loadChat(){ try{ return JSON.parse(localStorage.getItem('kv_chat')||'[{"id":"sys","author":"bot","text":"Здравствуйте! Чем можем помочь?"}]'); }catch(e){return [{"id":"sys","author":"bot","text":"Здравствуйте! Чем можем помочь?"}]} }
+    function saveChat(c){ localStorage.setItem('kv_chat', JSON.stringify(c)); }
+    function render(){
+      const w = document.getElementById('chatWindow');
+      w.innerHTML = '';
+      const msgs = loadChat();
+      msgs.forEach(m=>{
+        const div = document.createElement('div');
+        div.style.maxWidth='80%';
+        div.style.padding='8px 10px';
+        div.style.borderRadius='10px';
+        div.style.fontSize='13px';
+        if(m.author==='user'){ div.style.marginLeft='auto'; div.style.background='linear-gradient(90deg,#2b5cff,#7b61ff)'; div.style.color='#fff'; }
+        else { div.style.background='rgba(255,255,255,0.03)'; div.style.color='var(--text)'; }
+        div.textContent = m.text;
+        w.appendChild(div);
+      });
+      w.scrollTop = w.scrollHeight;
+    }
+    document.getElementById('send').addEventListener('click', ()=>{
+      const txt = document.getElementById('msg').value.trim();
+      if(!txt) return;
+      const chat = loadChat();
+      chat.push({ id: 'u'+Date.now(), author:'user', text: txt });
+      saveChat(chat);
+      document.getElementById('msg').value='';
+      render();
+      // simulate reply
+      setTimeout(()=>{
+        const ch = loadChat();
+        ch.push({ id: 'b'+Date.now(), author:'bot', text: 'Спасибо! Мы обработаем запрос и ответим в ближайшее время.'});
+        saveChat(ch);
+        render();
+      }, 800);
+    });
+
+    render();
+  </script>
+</body>
+</html>
+
+
+

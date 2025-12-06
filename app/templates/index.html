@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Steam Keys Store</title>
+
+  <!-- Favicons -->
+  <link rel="icon" href="assets/key-icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/key-icon.png">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Simple icon set -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+
+  <!-- Import map (no external JS frameworks required, but kept for extensibility) -->
+  <script type="importmap">
+  {
+    "imports": {}
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
+        <div>
+          <h1>KeyVault</h1>
+          <p class="tag">Электронные книги и гиды по играм</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <input id="search" class="search" placeholder="Поиск игр, например Dota 2" />
+        <div id="authArea" style="display:flex;gap:8px;align-items:center">
+          <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'">Войти</button>
+        </div>
+        <button class="btn ghost" onclick="location.href='/favorite.html'">Избранное (<span id="favCount">0</span>)</button>
+        <button id="cartBtn" class="btn ghost" onclick="location.href='/cart.html'">Корзина (<span id="cartCount">0</span>)</button>
+        <button id="chatBtn" class="btn ghost" onclick="location.href='/chat.html'">Чат</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Preview hero inserted here -->
+  <section class="preview-hero">
+    <div class="container preview-inner">
+      <div class="preview-thumbs" aria-hidden="true">
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg" alt="Dota 2">
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/945360/header.jpg" alt="Among Us">
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/870780/header.jpg" alt="Control" onerror="this.src='https://via.placeholder.com/600x200?text=Control'">
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg" alt="CS:GO">
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/883710/header.jpg" alt="Resident Evil">
+      </div>
+      <h2 class="preview-title">Добро пожаловать в KeyVault</h2>
+    </div>
+  </section>
+
+  <main class="container">
+    <section class="filters">
+      <div class="filter-row">
+        <div class="filter-toolbar" id="categoryToolbar" role="toolbar" aria-label="Категории">
+          <button class="chip" data-cat="all" aria-pressed="true">Все</button>
+          <button class="chip" data-cat="dota2">Dota 2</button>
+          <button class="chip" data-cat="fnaf">FNAF</button>
+          <button class="chip" data-cat="classic">Классика</button>
+          <button class="chip" data-cat="guides">Гайды</button>
+          <button class="chip" data-cat="market">Маркет</button>
+          <button class="chip" data-cat="lore">Лор</button>
+          <button class="chip" data-cat="strategy">Стратегия</button>
+          <button class="chip" data-cat="guides">Гайд</button>
+          <button class="chip" data-cat="platformer">Платформер</button>
+          <button class="chip" data-cat="analysis">Анализ</button>
+          <button class="chip" data-cat="indie">Инди</button>
+        </div>
+
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <label style="font-size:13px;color:var(--muted);margin:0 6px 0 0">Сортировка:</label>
+          <div class="sort-menu" id="sortMenu" role="menu" aria-label="Сортировка">
+            <button class="chip" data-sort="popular" aria-pressed="true">Популярные</button>
+            <button class="chip" data-sort="price-asc">Цена ↑</button>
+            <button class="chip" data-sort="price-desc">Цена ↓</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="products" class="product-grid" aria-live="polite">
+      <!-- Product cards inserted here by JS -->
+    </section>
+
+    <!-- Marketplace: user-created listings -->
+    <section id="marketplace" class="info" style="margin-top:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <h2 style="margin:0">Маркет публикаций</h2>
+        <button id="openListForm" class="btn ghost">Опубликовать книгу</button>
+      </div>
+
+      <div id="listingForm" style="display:none;margin-top:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.02)">
+        <div style="display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:center">
+          <input id="listTitle" placeholder="Название книги / гайда" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="listPrice" placeholder="Цена, ₽" type="number" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="listGame" placeholder="Игра / тема (Dota 2, Silent Hill...)" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="listThumb" placeholder="URL обложки" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <div style="display:flex;gap:8px">
+            <button id="createListing" class="btn primary">Опубликовать</button>
+            <button id="cancelListing" class="btn ghost">Отмена</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="marketGrid" class="product-grid" style="margin-top:12px;">
+        <!-- listings injected by JS -->
+      </div>
+    </section>
+
+    <!-- Author/Guide submissions (accounts marketplace repurposed to "Авторские издания") -->
+    <section id="accountsMarketplace" class="info" style="margin-top:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <h2 style="margin:0">Авторские издания</h2>
+        <button id="openAccListForm" class="btn ghost">Опубликовать издание</button>
+      </div>
+
+      <div id="accListingForm" style="display:none;margin-top:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.02)">
+        <div style="display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:center">
+          <input id="accListTitle" placeholder="Название издания / сборника" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="accListPrice" placeholder="Цена, ₽" type="number" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="accListGames" placeholder="Темы / игры (Dota2, Silent Hill...)" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="accListThumb" placeholder="URL обложки" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <div style="display:flex;gap:8px">
+            <button id="createAccListing" class="btn primary">Опубликовать</button>
+            <button id="cancelAccListing" class="btn ghost">Отмена</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="accMarketGrid" class="product-grid" style="margin-top:12px;">
+        <!-- account/author listings injected by JS -->
+      </div>
+    </section>
+
+    <!-- Reviews -->
+    <section id="reviews" class="info" style="margin-top:18px;">
+      <h2>Отзывы клиентов</h2>
+      <div id="reviewsGrid" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+        <!-- reviews injected by JS -->
+      </div>
+    </section>
+
+    <section class="info">
+      <h2>Почему KeyVault?</h2>
+      <ul>
+        <li>Электронные издания высокого качества</li>
+        <li>Гайды, артбуки и аналитика по играм</li>
+        <li>Поддержка авторов и безопасные покупки</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- Cart / Checkout Modal -->
+  <div id="cartModal" class="modal" aria-hidden="true">
+    <div class="modal-panel">
+      <header class="modal-header">
+        <h3>Ваша корзина</h3>
+        <button id="closeCart" class="btn icon">×</button>
+      </header>
+      <div class="modal-body" id="cartItems">
+        <!-- Items -->
+      </div>
+
+      <!-- Checkout form (hidden until user proceeds) -->
+      <div id="checkoutForm" style="display:none;padding:12px;border-top:1px solid rgba(255,255,255,0.02);">
+        <h4 style="margin:6px 0 8px">Данные покупателя и оплата</h4>
+        <div style="display:grid;gap:8px">
+          <input id="checkoutName" placeholder="ФИО получателя" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="checkoutEmail" placeholder="Email для получения ссылок" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <label style="font-size:13px;color:var(--muted);margin:0">Способ оплаты:
+            <select id="paymentMethod" style="margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+              <option value="card">Банковская карта</option>
+              <option value="paypal">PayPal</option>
+              <option value="qiwi">Qiwi</option>
+              <option value="cod">Оплата при получении (симуляция)</option>
+            </select>
+          </label>
+          <input id="paymentData" placeholder="Данные оплаты (номер карты / PayPal / Qiwi)" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="cancelCheckout" class="btn ghost">Отмена</button>
+            <button id="confirmPayment" class="btn primary">Оплатить</button>
+          </div>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <div class="total">Итого: <strong id="cartTotal">0 ₽</strong></div>
+        <div class="modal-actions">
+          <button id="clearCart" class="btn ghost">Очистить</button>
+          <button id="checkoutBtn" class="btn primary">Оформить</button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="authModal" class="modal" aria-hidden="true">
+    <div class="modal-panel" style="max-width:420px">
+      <header class="modal-header">
+        <h3 id="authTitle">Войти</h3>
+        <button id="closeAuth" class="btn icon">×</button>
+      </header>
+      <div class="modal-body" style="padding:12px;display:grid;gap:8px">
+        <input id="authName" placeholder="Имя пользователя / email" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+        <input id="authPass" type="password" placeholder="Пароль" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="toRegister" class="btn ghost">Регистрация</button>
+          <button id="submitAuth" class="btn primary">Войти</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="modal" aria-hidden="true">
+    <div class="modal-panel" style="max-width:500px;display:flex;flex-direction:column;height:70vh;padding:8px">
+      <header class="modal-header">
+        <h3>Чат поддержки</h3>
+        <button id="closeChat" class="btn icon">×</button>
+      </header>
+      <div id="chatBody" class="modal-body" style="padding:8px;flex:1;display:flex;flex-direction:column;gap:8px;overflow:auto;background:transparent">
+        <!-- messages -->
+      </div>
+      <footer style="display:flex;gap:8px;align-items:center;padding-top:6px">
+        <input id="chatInput" placeholder="Напишите сообщение..." style="flex:1;padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+        <button id="sendChat" class="btn primary">Отправить</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
+
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

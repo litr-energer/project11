@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Мой аккаунт — KeyVault</title>
+  <link rel="icon" href="assets/key-icon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
+        <div>
+          <h1>KeyVault</h1>
+          <p class="tag">Страница аккаунта</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button onclick="location.href='/'" class="btn ghost">Главная</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="info" style="padding:12px">
+      <h2>Данные аккаунта</h2>
+      <div id="accountInfo" style="margin-top:12px;padding:12px;border-radius:8px;background:rgba(255,255,255,0.02)"></div>
+
+      <h2 style="margin-top:18px">Мои заказы</h2>
+      <div id="ordersList" style="margin-top:12px;display:grid;gap:12px"></div>
+    </section>
+  </main>
+
+  <script>
+    function formatPrice(p){ return (p===0)?'Free':p.toLocaleString('ru-RU')+' ₽'; }
+    function loadUser(){ try{ return JSON.parse(localStorage.getItem('kv_user')||'null'); }catch(e){return null;} }
+    function saveUser(u){ try{ localStorage.setItem('kv_user', JSON.stringify(u)); }catch(e){} }
+    function loadOrders(){ try{ return JSON.parse(localStorage.getItem('kv_orders')||'[]'); }catch(e){return [];} }
+
+    // Render account info with editable name and avatar URL
+    function renderAccountInfo(){
+      const user = loadUser();
+      const info = document.getElementById('accountInfo');
+      info.innerHTML = '';
+      if(!user){
+        info.innerHTML = '<div style="color:var(--muted)">Вы не вошли в аккаунт. Для полного функционала войдите в систему.</div>';
+        return;
+      }
+
+      // avatar preview (uses avatarUrl if present), editable name and avatar URL
+      const avatarUrl = user.avatar || '';
+      info.innerHTML = `
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+            <div id="avatarPreview" class="profile-avatar" style="width:80px;height:80px;font-size:26px;background-image:${avatarUrl ? `url('${avatarUrl}')` : 'none'};background-size:cover;background-position:center;">
+              ${avatarUrl ? '' : (user.name?user.name[0].toUpperCase():'U')}
+            </div>
+            <button id="removeAvatar" class="btn ghost" style="font-size:13px;padding:6px 8px">Удалить аватар</button>
+          </div>
+
+          <div style="flex:1;min-width:220px">
+            <label style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px">Имя пользователя</label>
+            <input id="editName" value="${user.name||''}" placeholder="Имя" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);width:100%">
+
+            <label style="display:block;font-size:13px;color:var(--muted);margin:10px 0 6px">URL аватарки</label>
+            <input id="editAvatar" value="${avatarUrl}" placeholder="https://..." style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);width:100%">
+
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+              <button id="cancelAccountEdit" class="btn ghost">Отмена</button>
+              <button id="saveAccount" class="btn primary">Сохранить</button>
+            </div>
+            <div id="accountMsg" style="margin-top:8px;color:var(--muted);font-size:13px"></div>
+          </div>
+        </div>
+      `;
+
+      // preview update when avatar URL input changes
+      const avatarInput = document.getElementById('editAvatar');
+      const avatarPreview = document.getElementById('avatarPreview');
+      avatarInput.addEventListener('input', ()=>{
+        const v = avatarInput.value.trim();
+        if(v){
+          avatarPreview.style.backgroundImage = `url('${v}')`;
+          avatarPreview.textContent = '';
+        } else {
+          avatarPreview.style.backgroundImage = 'none';
+          avatarPreview.textContent = (document.getElementById('editName').value||'U')[0].toUpperCase();
+        }
+      });
+
+      // save button
+      document.getElementById('saveAccount').addEventListener('click', ()=>{
+        const newName = document.getElementById('editName').value.trim();
+        const newAvatar = document.getElementById('editAvatar').value.trim();
+        if(!newName){ document.getElementById('accountMsg').textContent = 'Введите имя пользователя'; return; }
+        const u = loadUser() || {};
+        u.name = newName;
+        u.avatar = newAvatar || '';
+        saveUser(u);
+        // Update related persistent storage used by other pages (kv_user)
+        localStorage.setItem('kv_user', JSON.stringify(u));
+        document.getElementById('accountMsg').textContent = 'Сохранено';
+        // update header/profile in index if user returns (best-effort)
+        setTimeout(()=>{ document.getElementById('accountMsg').textContent = ''; }, 1400);
+        renderAccountInfo();
+      });
+
+      // cancel resets inputs to stored values
+      document.getElementById('cancelAccountEdit').addEventListener('click', ()=>{
+        renderAccountInfo();
+      });
+
+      // remove avatar clear
+      document.getElementById('removeAvatar').addEventListener('click', ()=>{
+        document.getElementById('editAvatar').value = '';
+        avatarPreview.style.backgroundImage = 'none';
+        avatarPreview.textContent = (document.getElementById('editName').value||'U')[0].toUpperCase();
+      });
+    }
+
+    function renderOrders(){
+      const ordersWrap = document.getElementById('ordersList');
+      ordersWrap.innerHTML = '';
+      const orders = loadOrders();
+      const user = loadUser();
+      const myName = user ? user.name : null;
+      const filtered = myName ? orders.filter(o=>o.user === myName) : [];
+      if(filtered.length === 0){
+        ordersWrap.innerHTML = '<div style="color:var(--muted)">У вас ещё нет заказов</div>';
+        return;
+      }
+
+      filtered.forEach(o=>{
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <strong>Заказ ${o.id}</strong>
+              <div style="font-size:13px;color:var(--muted);margin-top:6px">${new Date(o.created_at).toLocaleString()}</div>
+            </div>
+            <div style="text-align:right"><div style="font-weight:700">${formatPrice(o.total)}</div><div style="font-size:13px;color:var(--muted)">${o.method}</div></div>
+          </div>
+          <div style="margin-top:10px;display:grid;gap:8px">
+            ${o.items.map(it=>`<div style="display:flex;gap:8px;align-items:center"><div style="width:72px;height:48px;overflow:hidden;border-radius:6px"><img src="${it.thumb||'https://via.placeholder.com/160x90'}" style="width:100%;height:100%;object-fit:cover"></div><div style="flex:1"><strong style="display:block">${it.title}</strong><div style="font-size:13px;color:var(--muted)">${formatPrice(it.price)} × ${it.qty}</div></div></div>`).join('')}
+          </div>
+        `;
+        ordersWrap.appendChild(card);
+      });
+    }
+
+    // init render
+    document.addEventListener('DOMContentLoaded', ()=>{
+      renderAccountInfo();
+      renderOrders();
+    });
+  </script>
+</body>
+</html>

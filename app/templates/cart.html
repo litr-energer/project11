@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Корзина — KeyVault</title>
+  <link rel="icon" href="assets/key-icon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
+        <div>
+          <h1>KeyVault</h1>
+          <p class="tag">Ваша корзина</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button onclick="location.href='/'" class="btn ghost">Главная</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="info" style="padding:12px">
+      <h2>Содержимое корзины</h2>
+      <div id="cartList" style="margin-top:12px;display:grid;gap:12px"></div>
+
+      <!-- Checkout controls wrapper (added to prevent script errors and to host checkout form) -->
+      <div id="checkoutSection" style="display:none;flex-direction:row;align-items:center;justify-content:space-between;margin-top:12px">
+        <div>Итого: <strong id="totalPrice">0 ₽</strong></div>
+        <div>
+          <button id="clearBtn" class="btn ghost">Очистить</button>
+          <button id="payBtn" class="btn primary">Оформить заказ</button>
+        </div>
+      </div>
+
+      <!-- Inline checkout form (hidden until requested) -->
+      <div id="checkoutFormWrap" style="display:none;margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(90deg, rgba(43,92,255,0.02), rgba(123,97,255,0.02));border:1px solid rgba(255,255,255,0.02)">
+        <h3 style="margin:0 0 8px">Данные покупателя и оплата</h3>
+        <div style="display:grid;gap:8px">
+          <input id="checkoutName" placeholder="ФИО получателя" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <input id="checkoutEmail" placeholder="Email для получения ссылок" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <label style="font-size:13px;color:var(--muted);margin:0">Способ оплаты:
+            <select id="paymentMethod" style="margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+              <option value="card">Банковская карта</option>
+              <option value="paypal">PayPal</option>
+              <option value="qiwi">Qiwi</option>
+              <option value="cod">Оплата при получении (симуляция)</option>
+            </select>
+          </label>
+          <input id="paymentData" placeholder="Данные оплаты (номер карты / PayPal / Qiwi)" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="cancelCheckoutBtn" class="btn ghost">Отмена</button>
+            <button id="confirmPayBtn" class="btn primary">Оплатить</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    function formatPrice(p){ return (p===0)?'Free':p.toLocaleString('ru-RU')+' ₽'; }
+    function loadCart(){ try{ return JSON.parse(localStorage.getItem('kv_cart')||'{}'); }catch(e){return {}} }
+    function saveCart(c){ localStorage.setItem('kv_cart', JSON.stringify(c)); }
+
+    function render(){
+      const cart = loadCart();
+      const wrap = document.getElementById('cartList');
+      wrap.innerHTML = '';
+      let total = 0;
+      const items = Object.values(cart);
+      if(items.length === 0){
+        wrap.innerHTML = '<div style="color:var(--muted)">Корзина пуста</div>';
+        document.getElementById('checkoutSection').style.display = 'none';
+        document.getElementById('checkoutFormWrap').style.display = 'none';
+        document.getElementById('totalPrice').textContent = formatPrice(0);
+        return;
+      }
+      items.forEach(it=>{
+        total += (it.price||0)*(it.qty||1);
+        const node = document.createElement('div');
+        node.className = 'card';
+        node.innerHTML = `
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="width:84px;height:56px;overflow:hidden;border-radius:6px"><img src="${it.thumb||'https://via.placeholder.com/160x90'}" style="width:100%;height:100%;object-fit:cover"></div>
+            <div style="flex:1">
+              <strong>${it.title}</strong>
+              <div style="color:var(--muted);font-size:13px;margin-top:6px">${formatPrice(it.price)} × ${it.qty}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button class="btn" data-id="${it.id}" data-act="inc">+</button>
+              <button class="btn" data-id="${it.id}" data-act="dec">−</button>
+              <button class="btn ghost" data-id="${it.id}" data-act="rm">Удалить</button>
+            </div>
+          </div>
+        `;
+        wrap.appendChild(node);
+      });
+      document.getElementById('totalPrice').textContent = formatPrice(total);
+      // show checkout controls when there are items
+      document.getElementById('checkoutSection').style.display = 'flex';
+    }
+
+    // quantity & remove handlers
+    document.addEventListener('click', (e)=>{
+      const t = e.target.closest('[data-act]');
+      if(!t) return;
+      const act = t.dataset.act, id = t.dataset.id;
+      const cart = loadCart();
+      if(act === 'inc'){ if(cart[id]) cart[id].qty = (cart[id].qty||1)+1; }
+      if(act === 'dec'){ if(cart[id]) cart[id].qty = (cart[id].qty||1)-1; if(cart[id] && cart[id].qty<=0) delete cart[id]; }
+      if(act === 'rm'){ if(cart[id]) delete cart[id]; }
+      saveCart(cart);
+      render();
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', ()=>{
+      localStorage.removeItem('kv_cart');
+      render();
+    });
+
+    // Show inline checkout form (or when visiting #checkout)
+    function showCheckoutForm(){
+      if(Object.keys(loadCart()).length === 0){
+        alert('Корзина пуста');
+        return;
+      }
+      document.getElementById('checkoutFormWrap').style.display = 'block';
+      // scroll to form
+      document.getElementById('checkoutFormWrap').scrollIntoView({behavior:'smooth', block:'center'});
+    }
+
+    // Simple validation and simulated payment
+    function doPayment(){
+      const name = document.getElementById('checkoutName').value.trim();
+      const email = document.getElementById('checkoutEmail').value.trim();
+      const method = document.getElementById('paymentMethod').value;
+      const pdata = document.getElementById('paymentData').value.trim();
+
+      if(!name || !email){ alert('Введите имя и email'); return; }
+      if(method !== 'cod' && pdata.length < 4){ alert('Введите корректные данные оплаты'); return; }
+
+      // simulate processing
+      const payBtn = document.getElementById('confirmPayBtn');
+      payBtn.disabled = true;
+      payBtn.textContent = 'Оплата...';
+      setTimeout(()=>{
+        // create an order and persist it
+        try{
+          const cart = loadCart();
+          const items = Object.values(cart).map(it=>({ id: it.id, title: it.title, price: it.price, qty: it.qty||1, thumb: it.thumb }));
+          const orders = JSON.parse(localStorage.getItem('kv_orders')||'[]');
+          const userObj = JSON.parse(localStorage.getItem('kv_user')||'null');
+          const order = {
+            id: 'ord-' + Date.now(),
+            user: userObj ? userObj.name : (name || 'guest'),
+            name,
+            email,
+            method,
+            items,
+            total: items.reduce((s,i)=>s + (i.price||0)*(i.qty||1),0),
+            created_at: new Date().toISOString()
+          };
+          orders.unshift(order);
+          localStorage.setItem('kv_orders', JSON.stringify(orders));
+        }catch(e){ console.warn('save order failed', e); }
+
+        alert('Заказ оплачен. Ссылки отправлены на ' + email);
+        // clear cart and hide form
+        localStorage.removeItem('kv_cart');
+        render();
+        document.getElementById('checkoutFormWrap').style.display = 'none';
+        // reset form fields
+        document.getElementById('checkoutName').value = '';
+        document.getElementById('checkoutEmail').value = '';
+        document.getElementById('paymentData').value = '';
+        payBtn.disabled = false;
+        payBtn.textContent = 'Оплатить';
+      }, 1000 + Math.random()*900);
+    }
+
+    // wire up pay button to open form
+    document.getElementById('payBtn').addEventListener('click', showCheckoutForm);
+
+    // wire confirm and cancel inside checkout
+    document.getElementById('confirmPayBtn').addEventListener('click', doPayment);
+    document.getElementById('cancelCheckoutBtn').addEventListener('click', ()=>{
+      document.getElementById('checkoutFormWrap').style.display = 'none';
+    });
+
+    // If page loaded with #checkout, show form
+    window.addEventListener('load', ()=>{
+      render();
+      if(location.hash === '#checkout') setTimeout(showCheckoutForm, 250);
+    });
+
+    // Also react to hashchange
+    window.addEventListener('hashchange', ()=>{
+      if(location.hash === '#checkout') showCheckoutForm();
+    });
+  </script>
+</body>
+</html>

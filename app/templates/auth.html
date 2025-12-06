@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Вход — KeyVault</title>
+  <link rel="icon" href="assets/key-icon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
+        <div>
+          <h1>KeyVault</h1>
+          <p class="tag">Вход в аккаунт</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button onclick="location.href='/'" class="btn ghost">Главная</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="display:flex;align-items:center;justify-content:center;min-height:60vh">
+    <div class="modal-panel" style="max-width:420px;padding:18px">
+      <header class="modal-header">
+        <h3 id="authTitle">Войти</h3>
+      </header>
+      <div style="display:grid;gap:10px;padding-top:6px">
+        <input id="authName" placeholder="Имя пользователя / email" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+        <input id="authPass" type="password" placeholder="Пароль" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="toRegister" class="btn ghost">Регистрация</button>
+          <button id="submitAuth" class="btn primary">Войти</button>
+        </div>
+      </div>
+      <div id="authMsg" style="margin-top:10px;color:var(--muted);font-size:13px"></div>
+    </div>
+  </main>
+
+  <script>
+    function showToast(msg){ alert(msg); }
+    document.getElementById('toRegister').addEventListener('click', ()=>{
+      document.getElementById('authTitle').textContent = 'Регистрация';
+    });
+    document.getElementById('submitAuth').addEventListener('click', ()=>{
+      const name = document.getElementById('authName').value.trim();
+      const pass = document.getElementById('authPass').value;
+      if(!name || !pass){ document.getElementById('authMsg').textContent = 'Введите имя и пароль'; return; }
+      const stored = JSON.parse(localStorage.getItem('kv_users')||'{}');
+      if(document.getElementById('authTitle').textContent === 'Регистрация'){
+        if(stored[name]){ document.getElementById('authMsg').textContent = 'Пользователь уже существует'; return; }
+        stored[name] = { name, pass };
+        localStorage.setItem('kv_users', JSON.stringify(stored));
+        localStorage.setItem('kv_user', JSON.stringify({ name }));
+        location.href = '/';
+      } else {
+        if(stored[name] && stored[name].pass === pass){
+          localStorage.setItem('kv_user', JSON.stringify({ name }));
+          location.href = '/';
+        } else {
+          document.getElementById('authMsg').textContent = 'Неверные данные';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
