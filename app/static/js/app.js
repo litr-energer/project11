@@ -508,7 +508,8 @@ const state = {
       { id: 'sys-1', author: 'bot', text: 'Здравствуйте! Чем можем помочь?' }
     ]
   },
-  favorites: JSON.parse(localStorage.getItem('kv_favs')||'[]') // added favorites state
+  favorites: JSON.parse(localStorage.getItem('kv_favs')||'[]'), // added favorites state
+  currentPaymentMethod: 'card-visa' // Default payment method
 };
 
 const el = selector => document.querySelector(selector);
@@ -697,6 +698,70 @@ function sendChatMessage(text){
   }, 800 + Math.random()*900);
 }
 
+function updatePaymentChips(containerId, selectedMethod){
+  const container = el(`#${containerId}`);
+  if(!container) return;
+  els(`#${containerId} .payment-chip`).forEach(chip => {
+    const method = chip.dataset.method;
+    const isSelected = method === selectedMethod || (method === 'card' && selectedMethod.startsWith('card-'));
+    
+    if (isSelected) {
+      chip.classList.add('selected');
+      chip.setAttribute('aria-pressed', 'true');
+    } else {
+      chip.classList.remove('selected');
+      chip.setAttribute('aria-pressed', 'false');
+    }
+  });
+}
+
+function handlePaymentSelection(method, isMainSelection=true){
+  state.currentPaymentMethod = method;
+
+  const mainMethodsContainer = el('#mainPaymentMethods');
+  const cardSpecificContainer = el('#cardSpecificPayments');
+  const paymentDataInput = el('#paymentData');
+  
+  if (!mainMethodsContainer || !paymentDataInput) return; // Only relevant in checkout context
+
+  // Update main methods visual state
+  updatePaymentChips('mainPaymentMethods', method);
+
+  // Handle visibility and placeholder for paymentData
+  if (method === 'cod') {
+    paymentDataInput.style.display = 'none';
+    paymentDataInput.placeholder = 'Данные оплаты не требуются';
+  } else if (method.startsWith('card')) {
+    paymentDataInput.style.display = 'block';
+    paymentDataInput.placeholder = 'Номер карты';
+    if(cardSpecificContainer) cardSpecificContainer.style.display = 'block';
+    
+    if(isMainSelection) {
+        // If main selection is 'card', ensure a default card sub-method is selected in state
+        const defaultCardMethod = el('#cardPaymentMethods')?.querySelector('[data-method="card-visa"]')?.dataset.method || 'card-visa';
+        state.currentPaymentMethod = defaultCardMethod;
+    }
+  } else if (method === 'paypal' || method === 'qiwi') {
+    paymentDataInput.style.display = 'block';
+    paymentDataInput.placeholder = `Аккаунт ${method.toUpperCase()}`;
+    if(cardSpecificContainer) cardSpecificContainer.style.display = 'none';
+  } else {
+    paymentDataInput.style.display = 'block';
+    paymentDataInput.placeholder = 'Данные оплаты (Номер карты/Аккаунт)';
+    if(cardSpecificContainer) cardSpecificContainer.style.display = 'none';
+  }
+  
+  // Update card specific selection state if visible
+  if (cardSpecificContainer && cardSpecificContainer.style.display === 'block') {
+      updatePaymentChips('cardPaymentMethods', state.currentPaymentMethod);
+  }
+  
+  // Ensure hidden input is updated (although only used here for local state management)
+  const hiddenInput = el('#paymentMethodHidden');
+  if(hiddenInput) hiddenInput.value = state.currentPaymentMethod;
+}
+
+
 function generateBotReply(userText){
   const lt = userText.toLowerCase();
   if(lt.includes('оплат') || lt.includes('покуп')) return 'Оплата прошла успешно? Если нет — пришлите номер заказа, мы проверим.';
@@ -804,7 +869,8 @@ function checkout(){
 function finalizePayment(){
   const name = el('#checkoutName').value.trim();
   const email = el('#checkoutEmail').value.trim();
-  const method = el('#paymentMethod').value;
+  // Get method from state updated by chip clicks
+  const method = state.currentPaymentMethod; 
   const pdata = el('#paymentData').value.trim();
 
   if(!name || !email){
@@ -1051,7 +1117,7 @@ function bind(){
     const cartBtn = e.target.closest('#cartBtn');
     if(cartBtn){ openCart(); return; }
 
-    const favHeader = e.target.closest('#favHeaderBtn');
+      const favHeader = e.target.closest('#favHeaderBtn');
     if(favHeader){
       // open favorites page instead of modal
       window.location.href = 'favorites.html';
@@ -1259,6 +1325,24 @@ function bind(){
     el('#accListTitle').value=''; el('#accListPrice').value=''; el('#accListGames').value=''; el('#accListThumb').value='';
     renderAccountsMarketplace();
     showToast('Издание опубликовано');
+  });
+
+  // Payment chip bindings (for Index modal, if used)
+  document.body.addEventListener('click', (e)=>{
+    const chip = e.target.closest('.payment-chip');
+    if(chip && chip.closest('#checkoutForm')){
+      const containerId = chip.parentNode.id;
+      const method = chip.dataset.method;
+      
+      if(containerId === 'mainPaymentMethods'){
+        // Main selection: Card, PayPal, Qiwi, COD
+        handlePaymentSelection(method, true);
+      } else if (containerId === 'cardPaymentMethods' && state.currentPaymentMethod.startsWith('card-')) {
+        // Sub-selection for card types
+        handlePaymentSelection(method, false);
+      }
+      return;
+    }
   });
 
   // Close modal on background click

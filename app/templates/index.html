@@ -41,7 +41,7 @@
         <div id="authArea" style="display:flex;gap:8px;align-items:center">
           <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'">Войти</button>
         </div>
-        <button class="btn ghost" onclick="location.href='/favorite.html'">Избранное (<span id="favCount">0</span>)</button>
+        <button class="btn ghost" title="Избранное" onclick="location.href='/favorite.html'">Избранное (<span id="favCount">0</span>)</button>
         <button id="cartBtn" class="btn ghost" onclick="location.href='/cart.html'">Корзина (<span id="cartCount">0</span>)</button>
         <button id="chatBtn" class="btn ghost" onclick="location.href='/chat.html'">Чат</button>
       </nav>
@@ -180,15 +180,30 @@
         <div style="display:grid;gap:8px">
           <input id="checkoutName" placeholder="ФИО получателя" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
           <input id="checkoutEmail" placeholder="Email для получения ссылок" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-          <label style="font-size:13px;color:var(--muted);margin:0">Способ оплаты:
-            <select id="paymentMethod" style="margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-              <option value="card">Банковская карта</option>
-              <option value="paypal">PayPal</option>
-              <option value="qiwi">Qiwi</option>
-              <option value="cod">Оплата при получении (симуляция)</option>
-            </select>
-          </label>
-          <input id="paymentData" placeholder="Данные оплаты (номер карты / PayPal / Qiwi)" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <div id="paymentMethodInputGroup">
+            <label style="display:block;font-size:13px;color:var(--muted);margin:0 0 6px">Основной способ оплаты:</label>
+            <!-- Chips for main methods: Bank Card, PayPal, Qiwi, COD -->
+            <div id="mainPaymentMethods" class="payment-chips">
+              <button class="payment-chip selected" data-method="card">Банковская карта</button>
+              <button class="payment-chip" data-method="paypal">PayPal</button>
+              <button class="payment-chip" data-method="qiwi">Qiwi</button>
+              <button class="payment-chip" data-method="cod">Оплата при получении</button>
+            </div>
+
+            <!-- Detailed options for 'card' payment, visible by default or when card is selected -->
+            <div id="cardSpecificPayments" style="margin-top:10px;display:block;">
+              <label style="display:block;font-size:13px;color:var(--muted);margin:0 0 6px">Выберите систему:</label>
+              <div id="cardPaymentMethods" class="payment-chips">
+                <button class="payment-chip selected" data-method="card-visa">Visa/Mastercard</button>
+                <button class="payment-chip" data-method="card-apple">Apple Pay</button>
+                <button class="payment-chip" data-method="card-google">Google Pay</button>
+                <button class="payment-chip" data-method="card-yoomoney">ЮMoney</button>
+              </div>
+            </div>
+            
+            <input id="paymentMethodHidden" type="hidden" value="card-visa">
+          </div>
+          <input id="paymentData" placeholder="Данные оплаты (Номер карты/Аккаунт)" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <button id="cancelCheckout" class="btn ghost">Отмена</button>
             <button id="confirmPayment" class="btn primary">Оплатить</button>

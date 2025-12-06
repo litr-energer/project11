@@ -43,15 +43,30 @@
         <div style="display:grid;gap:8px">
           <input id="checkoutName" placeholder="ФИО получателя" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
           <input id="checkoutEmail" placeholder="Email для получения ссылок" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-          <label style="font-size:13px;color:var(--muted);margin:0">Способ оплаты:
-            <select id="paymentMethod" style="margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-              <option value="card">Банковская карта</option>
-              <option value="paypal">PayPal</option>
-              <option value="qiwi">Qiwi</option>
-              <option value="cod">Оплата при получении (симуляция)</option>
-            </select>
-          </label>
-          <input id="paymentData" placeholder="Данные оплаты (номер карты / PayPal / Qiwi)" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
+          <div id="paymentMethodInputGroup">
+            <label style="display:block;font-size:13px;color:var(--muted);margin:0 0 6px">Основной способ оплаты:</label>
+            <!-- Chips for main methods: Bank Card, PayPal, Qiwi, COD -->
+            <div id="mainPaymentMethods" class="payment-chips">
+              <button class="payment-chip selected" data-method="card">Банковская карта</button>
+              <button class="payment-chip" data-method="paypal">PayPal</button>
+              <button class="payment-chip" data-method="qiwi">Qiwi</button>
+              <button class="payment-chip" data-method="cod">Оплата при получении</button>
+            </div>
+
+            <!-- Detailed options for 'card' payment, visible by default or when card is selected -->
+            <div id="cardSpecificPayments" style="margin-top:10px;display:block;">
+              <label style="display:block;font-size:13px;color:var(--muted);margin:0 0 6px">Выберите систему:</label>
+              <div id="cardPaymentMethods" class="payment-chips">
+                <button class="payment-chip selected" data-method="card-visa">Visa/Mastercard</button>
+                <button class="payment-chip" data-method="card-apple">Apple Pay</button>
+                <button class="payment-chip" data-method="card-google">Google Pay</button>
+                <button class="payment-chip" data-method="card-yoomoney">ЮMoney</button>
+              </div>
+            </div>
+            
+            <input id="paymentMethodHidden" type="hidden" value="card-visa">
+          </div>
+          <input id="paymentData" placeholder="Данные оплаты (Номер карты/Аккаунт)" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
 
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <button id="cancelCheckoutBtn" class="btn ghost">Отмена</button>
@@ -106,6 +121,66 @@
       document.getElementById('checkoutSection').style.display = 'flex';
     }
 
+    // State for payment selection
+    let currentPaymentMethod = 'card-visa';
+
+    function updatePaymentChips(containerId, selectedMethod){
+      const container = document.getElementById(containerId);
+      if(!container) return;
+      Array.from(container.querySelectorAll('.payment-chip')).forEach(chip => {
+        const method = chip.dataset.method;
+        const isSelected = method === selectedMethod || (method === 'card' && selectedMethod.startsWith('card-'));
+        
+        if (isSelected) {
+          chip.classList.add('selected');
+          chip.setAttribute('aria-pressed', 'true');
+        } else {
+          chip.classList.remove('selected');
+          chip.setAttribute('aria-pressed', 'false');
+        }
+      });
+    }
+
+    function handlePaymentSelection(method, isMainSelection=true){
+      currentPaymentMethod = method;
+      document.getElementById('paymentMethodHidden').value = method;
+
+      const mainMethodsContainer = document.getElementById('mainPaymentMethods');
+      const cardSpecificContainer = document.getElementById('cardSpecificPayments');
+      const paymentDataInput = document.getElementById('paymentData');
+
+      // Update main methods visual state
+      updatePaymentChips('mainPaymentMethods', method);
+
+      // Handle visibility and placeholder for paymentData
+      if (method === 'cod') {
+        paymentDataInput.style.display = 'none';
+        paymentDataInput.placeholder = 'Данные оплаты не требуются';
+      } else if (method.startsWith('card')) {
+        paymentDataInput.style.display = 'block';
+        paymentDataInput.placeholder = 'Номер карты';
+        if(cardSpecificContainer) cardSpecificContainer.style.display = 'block';
+        if(isMainSelection) {
+            // If main selection is 'card', ensure a default card sub-method is selected
+            currentPaymentMethod = document.getElementById('cardPaymentMethods').querySelector('.selected')?.dataset.method || 'card-visa';
+            document.getElementById('paymentMethodHidden').value = currentPaymentMethod;
+        }
+      } else if (method === 'paypal' || method === 'qiwi') {
+        paymentDataInput.style.display = 'block';
+        paymentDataInput.placeholder = `Аккаунт ${method.toUpperCase()}`;
+        if(cardSpecificContainer) cardSpecificContainer.style.display = 'none';
+      } else {
+        paymentDataInput.style.display = 'block';
+        paymentDataInput.placeholder = 'Данные оплаты (Номер карты/Аккаунт)';
+        if(cardSpecificContainer) cardSpecificContainer.style.display = 'none';
+      }
+      
+      // Update card specific selection state if visible
+      if (cardSpecificContainer && cardSpecificContainer.style.display === 'block') {
+          updatePaymentChips('cardPaymentMethods', currentPaymentMethod);
+      }
+    }
+
     // quantity & remove handlers
     document.addEventListener('click', (e)=>{
       const t = e.target.closest('[data-act]');
@@ -119,6 +194,23 @@
       render();
     });
 
+    // Payment chip handlers
+    document.addEventListener('click', (e)=>{
+      const chip = e.target.closest('#mainPaymentMethods .payment-chip');
+      if(chip){
+        const method = chip.dataset.method;
+        handlePaymentSelection(method, true); // True for main selection
+        return;
+      }
+      const subChip = e.target.closest('#cardPaymentMethods .payment-chip');
+      if(subChip){
+        const method = subChip.dataset.method;
+        handlePaymentSelection(method, false); // False for sub selection
+        return;
+      }
+    });
+
+
     document.getElementById('clearBtn').addEventListener('click', ()=>{
       localStorage.removeItem('kv_cart');
       render();
@@ -131,6 +223,7 @@
         return;
       }
       document.getElementById('checkoutFormWrap').style.display = 'block';
+      handlePaymentSelection(currentPaymentMethod, true); // Initialize payment UI state when opening form
       // scroll to form
       document.getElementById('checkoutFormWrap').scrollIntoView({behavior:'smooth', block:'center'});
     }
@@ -139,11 +232,17 @@
     function doPayment(){
       const name = document.getElementById('checkoutName').value.trim();
       const email = document.getElementById('checkoutEmail').value.trim();
-      const method = document.getElementById('paymentMethod').value;
+      // Use the value set by chip handlers
+      const method = document.getElementById('paymentMethodHidden').value;
       const pdata = document.getElementById('paymentData').value.trim();
 
       if(!name || !email){ alert('Введите имя и email'); return; }
-      if(method !== 'cod' && pdata.length < 4){ alert('Введите корректные данные оплаты'); return; }
+      
+      // Validation depends on the specific method chosen
+      if(method !== 'cod' && pdata.length < 4){ 
+        alert('Введите корректные данные оплаты'); 
+        return; 
+      }
 
       // simulate processing
       const payBtn = document.getElementById('confirmPayBtn');
@@ -196,7 +295,14 @@
     // If page loaded with #checkout, show form
     window.addEventListener('load', ()=>{
       render();
-      if(location.hash === '#checkout') setTimeout(showCheckoutForm, 250);
+      if(location.hash === '#checkout') setTimeout(()=>{
+        showCheckoutForm();
+        handlePaymentSelection(currentPaymentMethod, true); // Initialize payment UI state
+      }, 250);
+      else {
+        // Initialize payment UI state for inputs if form is hidden
+        handlePaymentSelection(currentPaymentMethod, true);
+      }
     });
 
     // Also react to hashchange

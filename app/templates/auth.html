@@ -55,11 +55,11 @@
         stored[name] = { name, pass };
         localStorage.setItem('kv_users', JSON.stringify(stored));
         localStorage.setItem('kv_user', JSON.stringify({ name }));
-        location.href = '/';
+        location.href = 'index.html';
       } else {
         if(stored[name] && stored[name].pass === pass){
           localStorage.setItem('kv_user', JSON.stringify({ name }));
-          location.href = '/';
+          location.href = 'index.html';
         } else {
           document.getElementById('authMsg').textContent = 'Неверные данные';
         }

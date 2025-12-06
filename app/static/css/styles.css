@@ -283,3 +283,52 @@ body{
   /* Increase hit area for favorites floating button and move a bit up */
   #favBtn{padding:10px 12px;right:12px;bottom:88px}
 }
+
+/* Themed select for checkout/payment (matches site accents) */
+.themed-select{
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: linear-gradient(90deg,var(--accent-1),var(--accent-2));
+  color: #fff;
+  border: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  box-shadow: 0 6px 18px rgba(11,12,20,0.5);
+}
+/* smaller variant used on mobile */
+@media (max-width:420px){
+  .themed-select{ padding:8px 10px; border-radius:8px; font-size:13px; }
+}
+
+/* Custom Payment Chips */
+.payment-chips{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.payment-chip{
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: var(--glass);
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+.payment-chip.selected{
+  background: linear-gradient(90deg,var(--accent-1),var(--accent-2));
+  color: white;
+  border: 1px solid var(--accent-1);
+  box-shadow: 0 4px 12px rgba(43,92,255,0.2);
+}
+.payment-chip:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(43,92,255,0.1);
+}
+@media (max-width:420px){
+  .payment-chip{ padding:8px 10px; font-size:13px; }
+}
