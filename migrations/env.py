@@ -22,6 +22,7 @@ from app.models.order_items import OrderItemModel
 from app.models.carts import CartModel
 from app.models.cart_items import CartItemModel
 from app.models.author_listing import AuthorListingModel
+from app.models.listing import ListingModel
 
 
 
