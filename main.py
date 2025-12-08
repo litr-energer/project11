@@ -2,7 +2,9 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import HTTPException
 from pathlib import Path
 import os
 
@@ -21,6 +23,15 @@ from app.api.author_listing import router as author_listing_router
 from app.api.review import router as review_router
 
 app = FastAPI(title="individual_project_template", version="0.0.1")
+
+# Добавляем CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # В продакшене измените на конкретные домены
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Определите пути
 BASE_DIR = Path(__file__).resolve().parent
@@ -47,6 +58,29 @@ app.include_router(listing_router)
 app.include_router(author_listing_router)
 app.include_router(review_router)
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "message": "API is running"}
+
+@app.get("/api/info")
+async def api_info():
+    return {
+        "name": "individual_project_template",
+        "version": "0.0.1",
+        "status": "running"
+    }
+
+# Тестовый endpoint
+@app.get("/api/test")
+async def test_endpoint():
+    return {"message": "API is working"}
+
+# Базовый products endpoint для совместимости с фронтендом
+@app.get("/api/products/")
+async def get_products(limit: int = 20, offset: int = 0):
+    return []
+
 # Создайте маршруты для ваших HTML страниц
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -70,8 +104,35 @@ async def read_page4(request: Request):
     return templates.TemplateResponse("chat.html", {"request": request})
 
 @app.get("/favorite.html", response_class=HTMLResponse)
-async def read_page4(request: Request):
+async def read_favorite(request: Request):
     return templates.TemplateResponse("favorite.html", {"request": request})
 
+# 404 страница
+@app.get("/404.html", response_class=HTMLResponse)
+async def not_found_page(request: Request):
+    return templates.TemplateResponse("404.html", {"request": request})
+
+# Favicon
+@app.get("/favicon.ico")
+async def favicon():
+    favicon_path = os.path.join(STATIC_DIR, "favicon.ico")
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path)
+    return JSONResponse(status_code=404, content={"detail": "Favicon not found"})
+
+# Обработчик 404 ошибок
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc: HTTPException):
+    if request.url.path.endswith('.html'):
+        return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Not Found"}
+    )
+
 if __name__ == "__main__":
-    uvicorn.run(app=app)
+    uvicorn.run(
+        app=app,
+        host="0.0.0.0",
+        port=8000,
+    )
