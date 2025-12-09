@@ -1,35 +1,55 @@
-from datetime import datetime
-from typing import AsyncGenerator
-from sqlalchemy import NullPool, func, text
-from sqlalchemy.ext.asyncio import (
-    async_sessionmaker,
-    create_async_engine,
-    AsyncSession,
-)
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from typing import Generator
+import os
+from dotenv import load_dotenv
 
-from app.config import settings
+# Загружаем переменные окружения
+load_dotenv()
 
-engine = create_async_engine(settings.get_db_url)
-engine_null_pool = create_async_engine(settings.get_db_url, poolclass=NullPool)
-
-async_session_maker = async_sessionmaker(bind=engine, expire_on_commit=False)
-async_session_maker_null_pool = async_sessionmaker(
-    bind=engine_null_pool, expire_on_commit=False
+# Получаем настройки базы данных из переменных окружения
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "sqlite:///./app.db"  # Значение по умолчанию для SQLite
 )
 
+# Создаем движок базы данных
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+)
 
-class Base(DeclarativeBase):
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now()
-    )
+# Создаем фабрику сессий
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Базовый класс для моделей
+Base = declarative_base()
 
 
-# Добавляем функцию для получения асинхронной сессии
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_maker() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+def get_db() -> Generator[Session, None, None]:
+    """
+    Зависимость для получения сессии базы данных.
+    
+    Использование:
+    ```
+    def some_endpoint(db: Session = Depends(get_db)):
+        # работа с базой данных через db
+        pass
+    ```
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def create_tables():
+    """Создает все таблицы в базе данных"""
+    Base.metadata.create_all(bind=engine)
+
+
+def drop_tables():
+    """Удаляет все таблицы из базы данных (для тестирования)"""
+    Base.metadata.drop_all(bind=engine)

@@ -1,138 +1,122 @@
-import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import HTTPException
-from pathlib import Path
+from app.database.database import engine, Base, create_tables
+# Импорт из router (в единственном числе)
+from app.router import (
+    role_router,
+    user_router,
+    product_router,
+    listing_router,
+    author_listing_router,
+    order_router,
+    cart_router,
+    favorite_router,
+    review_router,
+    chat_message_router
+)
+from app.exceptions.handler import setup_exception_handlers
+import logging
 import os
+from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
-# Импортируйте ваши роутеры
-from app.api.sample import router as sample_router
-from app.api.auth import router as auth_router
-from app.api.roles import router as role_router
-from app.api.products import router as products_router
-from app.api.favorites import router as favorites_router
-from app.api.chat_massage import router as chat_router 
-from app.api.cart import router as cart_router  
-from app.api.cart_items import router as cart_items_router
-from app.api.orders import router as orders_router
-from app.api.listing import router as listing_router
-from app.api.author_listing import router as author_listing_router
-from app.api.review import router as review_router
+# Загружаем переменные окружения
+load_dotenv()
 
-app = FastAPI(title="individual_project_template", version="0.0.1")
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
 
-# Добавляем CORS middleware
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan менеджер для управления событиями запуска и остановки приложения.
+    """
+    # События при запуске
+    logger.info("🚀 Starting E-Commerce API...")
+    
+    # Создание таблиц в базе данных
+    try:
+        create_tables()
+        logger.info("✅ Database tables created successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to create database tables: {e}")
+        raise
+    
+    logger.info(f"📊 Database URL: {os.getenv('DATABASE_URL', 'sqlite:///./app.db')}")
+    logger.info("✅ Application started successfully")
+    
+    yield  # Здесь приложение работает
+    
+    # События при остановке
+    logger.info("🛑 Shutting down E-Commerce API...")
+    logger.info("👋 Application stopped successfully")
+
+
+# Создание приложения FastAPI
+app = FastAPI(
+    title="E-Commerce API",
+    description="API для интернет-магазина с системой авторов и листингов",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+# Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # В продакшене измените на конкретные домены
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Определите пути
-BASE_DIR = Path(__file__).resolve().parent
-TEMPLATES_DIR = os.path.join(BASE_DIR, "app", "templates")
-STATIC_DIR = os.path.join(BASE_DIR, "app", "static")
+# Настройка обработчиков исключений
+setup_exception_handlers(app)
 
-# Подключите статические файлы (CSS, JS, изображения)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+# Подключение всех роутеров
+app.include_router(role_router.router)
+app.include_router(user_router.router)
+app.include_router(product_router.router)
+app.include_router(listing_router.router)
+app.include_router(author_listing_router.router)
+app.include_router(order_router.router)
+app.include_router(cart_router.router)
+app.include_router(favorite_router.router)
+app.include_router(review_router.router)
+app.include_router(chat_message_router.router)
 
-# Настройте шаблоны
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-# Включите ваши API роутеры
-app.include_router(sample_router)
-app.include_router(auth_router)
-app.include_router(role_router)
-app.include_router(products_router)
-app.include_router(favorites_router)
-app.include_router(chat_router)
-app.include_router(cart_items_router)
-app.include_router(cart_router)
-app.include_router(orders_router)
-app.include_router(listing_router)
-app.include_router(author_listing_router)
-app.include_router(review_router)
-
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "message": "API is running"}
-
-@app.get("/api/info")
-async def api_info():
+@app.get("/")
+def read_root():
     return {
-        "name": "individual_project_template",
-        "version": "0.0.1",
-        "status": "running"
+        "message": "Добро пожаловать в E-Commerce API",
+        "documentation": "/docs",
+        "version": "1.0.0",
+        "status": "operational"
     }
 
-# Тестовый endpoint
-@app.get("/api/test")
-async def test_endpoint():
-    return {"message": "API is working"}
 
-# Базовый products endpoint для совместимости с фронтендом
-@app.get("/api/products/")
-async def get_products(limit: int = 20, offset: int = 0):
-    return []
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "database": "connected"
+    }
 
-# Создайте маршруты для ваших HTML страниц
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/cart.html", response_class=HTMLResponse)
-async def read_page1(request: Request):
-    return templates.TemplateResponse("cart.html", {"request": request})
-
-@app.get("/auth.html", response_class=HTMLResponse)
-async def read_page2(request: Request):
-    return templates.TemplateResponse("auth.html", {"request": request})
-
-# Добавьте маршруты для остальных 3 HTML файлов
-@app.get("/account.html", response_class=HTMLResponse)
-async def read_page3(request: Request):
-    return templates.TemplateResponse("account.html", {"request": request})
-
-@app.get("/chat.html", response_class=HTMLResponse)
-async def read_page4(request: Request):
-    return templates.TemplateResponse("chat.html", {"request": request})
-
-@app.get("/favorite.html", response_class=HTMLResponse)
-async def read_favorite(request: Request):
-    return templates.TemplateResponse("favorite.html", {"request": request})
-
-# 404 страница
-@app.get("/404.html", response_class=HTMLResponse)
-async def not_found_page(request: Request):
-    return templates.TemplateResponse("404.html", {"request": request})
-
-# Favicon
-@app.get("/favicon.ico")
-async def favicon():
-    favicon_path = os.path.join(STATIC_DIR, "favicon.ico")
-    if os.path.exists(favicon_path):
-        return FileResponse(favicon_path)
-    return JSONResponse(status_code=404, content={"detail": "Favicon not found"})
-
-# Обработчик 404 ошибок
-@app.exception_handler(404)
-async def custom_404_handler(request: Request, exc: HTTPException):
-    if request.url.path.endswith('.html'):
-        return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
-    return JSONResponse(
-        status_code=404,
-        content={"detail": "Not Found"}
-    )
 
 if __name__ == "__main__":
+    import uvicorn
+    
     uvicorn.run(
-        app=app,
+        "main:app",
         host="0.0.0.0",
         port=8000,
+        reload=True
     )
