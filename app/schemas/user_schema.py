@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
 
@@ -9,7 +9,10 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
+    name: str
+    email: EmailStr
     password: str
+    role_id: Optional[int] = Field(default=2)  # Установить значение по умолчанию
 
 
 class UserUpdate(BaseModel):

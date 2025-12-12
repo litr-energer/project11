@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 from app.database.database import engine, Base, create_tables
-# Импорт из router (в единственном числе)
 from app.router import (
     role_router,
     user_router,
@@ -19,11 +21,19 @@ import logging
 import os
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-# Загружаем переменные окружения
 load_dotenv()
 
-# Настройка логирования
+# Определите пути
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = os.path.join(BASE_DIR, "app", "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "app", "static")
+
+# СОЗДАЕМ ПАПКИ, ЕСЛИ ОНИ НЕ СУЩЕСТВУЮТ
+os.makedirs(TEMPLATES_DIR, exist_ok=True)
+os.makedirs(STATIC_DIR, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -37,10 +47,8 @@ async def lifespan(app: FastAPI):
     """
     Lifespan менеджер для управления событиями запуска и остановки приложения.
     """
-    # События при запуске
     logger.info("🚀 Starting E-Commerce API...")
     
-    # Создание таблиц в базе данных
     try:
         create_tables()
         logger.info("✅ Database tables created successfully")
@@ -51,14 +59,12 @@ async def lifespan(app: FastAPI):
     logger.info(f"📊 Database URL: {os.getenv('DATABASE_URL', 'sqlite:///./app.db')}")
     logger.info("✅ Application started successfully")
     
-    yield  # Здесь приложение работает
+    yield 
     
-    # События при остановке
     logger.info("🛑 Shutting down E-Commerce API...")
     logger.info("👋 Application stopped successfully")
 
 
-# Создание приложения FastAPI
 app = FastAPI(
     title="E-Commerce API",
     description="API для интернет-магазина с системой авторов и листингов",
@@ -68,7 +74,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Настройка CORS
+# Подключите статические файлы (CSS, JS, изображения)
+app.mount("/app/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Настройте шаблоны
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -77,10 +88,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Настройка обработчиков исключений
 setup_exception_handlers(app)
-
-# Подключение всех роутеров
 app.include_router(role_router.router)
 app.include_router(user_router.router)
 app.include_router(product_router.router)
@@ -93,14 +101,29 @@ app.include_router(review_router.router)
 app.include_router(chat_message_router.router)
 
 
-@app.get("/")
-def read_root():
-    return {
-        "message": "Добро пожаловать в E-Commerce API",
-        "documentation": "/docs",
-        "version": "1.0.0",
-        "status": "operational"
-    }
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/cart.html", response_class=HTMLResponse)
+async def read_page1(request: Request):
+    return templates.TemplateResponse("cart.html", {"request": request})
+
+@app.get("/auth.html", response_class=HTMLResponse)
+async def read_page2(request: Request):
+    return templates.TemplateResponse("auth.html", {"request": request})
+
+@app.get("/account.html", response_class=HTMLResponse)
+async def read_page3(request: Request):
+    return templates.TemplateResponse("account.html", {"request": request})
+
+@app.get("/chat.html", response_class=HTMLResponse)
+async def read_page4(request: Request):
+    return templates.TemplateResponse("chat.html", {"request": request})
+
+@app.get("/favorite.html", response_class=HTMLResponse)
+async def read_page5(request: Request):
+    return templates.TemplateResponse("favorite.html", {"request": request})
 
 
 @app.get("/health")
@@ -114,9 +137,4 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
     
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+    uvicorn.run("main:app")

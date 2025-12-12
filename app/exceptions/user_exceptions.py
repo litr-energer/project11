@@ -1,49 +1,61 @@
-from .base_exceptions import NotFoundException, ConflictException, ValidationException, UnauthorizedException
+from app.exceptions.base_exceptions import BaseAPIException
 
-
-class UserNotFoundException(NotFoundException):
-    """Исключение, когда пользователь не найден"""
+class UserNotFoundException(BaseAPIException):
+    """Исключение: пользователь не найден"""
     
-    def __init__(self, user_id: int = None, email: str = None):
-        if user_id:
-            super().__init__(resource_name="User", resource_id=user_id)
-        elif email:
-            detail = f"User with email '{email}' not found"
-            super().__init__(
-                status_code=404,
-                detail=detail,
-                error_code="USER_NOT_FOUND",
-                extra={"email": email}
-            )
-        else:
-            super().__init__(resource_name="User", resource_id="unknown")
-
-
-class UserAlreadyExistsException(ConflictException):
-    """Исключение, когда пользователь с таким email уже существует"""
-    
-    def __init__(self, email: str):
-        detail = f"User with email '{email}' already exists"
+    def __init__(self, user_id: int = None, email: str = None, detail: str = None):
+        if detail is None:
+            if user_id:
+                detail = f"Пользователь с ID {user_id} не найден"
+            elif email:
+                detail = f"Пользователь с email {email} не найден"
+            else:
+                detail = "Пользователь не найден"
+                
         super().__init__(
-            detail=detail,
-            error_code="USER_ALREADY_EXISTS",
-            extra={"email": email}
+            status_code=404,
+            error_code="user_not_found",
+            detail=detail
         )
 
-
-class InvalidCredentialsException(UnauthorizedException):
-    """Исключение для неверных учетных данных"""
+class UserAlreadyExistsException(BaseAPIException):
+    """Исключение: пользователь уже существует"""
     
-    def __init__(self):
-        detail = "Invalid email or password"
+    def __init__(self, email: str = None, detail: str = None):
+        if detail is None:
+            if email:
+                detail = f"Пользователь с email {email} уже существует"
+            else:
+                detail = "Пользователь уже существует"
+                
         super().__init__(
-            detail=detail,
-            error_code="INVALID_CREDENTIALS"
+            status_code=409,
+            error_code="user_already_exists",
+            detail=detail
         )
 
-
-class UserValidationException(ValidationException):
-    """Исключение для ошибок валидации пользователя"""
+class InvalidCredentialsException(BaseAPIException):
+    """Исключение: неверные учетные данные"""
     
-    def __init__(self, detail: str = "User validation error", errors: list = None):
-        super().__init__(detail=detail, errors=errors, error_code="USER_VALIDATION_ERROR")
+    def __init__(self, detail: str = None):
+        if detail is None:
+            detail = "Неверный email или пароль"
+            
+        super().__init__(
+            status_code=401,
+            error_code="invalid_credentials",
+            detail=detail
+        )
+
+class InsufficientPermissionsException(BaseAPIException):
+    """Исключение: недостаточно прав"""
+    
+    def __init__(self, detail: str = None):
+        if detail is None:
+            detail = "Недостаточно прав для выполнения операции"
+            
+        super().__init__(
+            status_code=403,
+            error_code="insufficient_permissions",
+            detail=detail
+        )

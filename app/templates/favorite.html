@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Избранное — KeyVault</title>
+  <title>Избранное — ЦифраМаркет</title>
   <link rel="icon" href="assets/key-icon.png" type="image/png">
-  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="/app/static/css/styles.css">
 </head>
 <body>
   <header class="site-header">
     <div class="container header-inner">
       <div class="brand">
-        <img src="#" alt="logo" class="logo" onerror="this.style.display='none'">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
         <div>
-          <h1>KeyVault</h1>
+          <h1>ЦифраМаркет</h1>
           <p class="tag">Избранное</p>
         </div>
       </div>
@@ -58,8 +58,10 @@
         }
         const card = document.createElement('article');
         card.className = 'card';
+        // ensure thumb exists and provide onerror fallback so broken URLs don't remove image
+        const safeThumb = p.thumb || 'https://via.placeholder.com/400x200?text=No+preview';
         card.innerHTML = `
-          <div class="media"><img src="${p.thumb}" alt="${p.title}" style="width:100%;height:100%;object-fit:cover"></div>
+          <div class="media"><img src="${safeThumb}" alt="${p.title}" onerror="this.src='https://via.placeholder.com/400x200?text=No+preview'" style="width:100%;height:100%;object-fit:cover"></div>
           <div>
             <h3>${p.title}</h3>
             <div class="meta"><span class="tag-pill">${p.tag||''}</span><span class="price">${formatPrice(p.price||0)}</span></div>

@@ -1,27 +1,47 @@
-from .base_exceptions import NotFoundException, ValidationException, BadRequestException
+# app/exceptions/listing_exceptions.py
+from app.exceptions.base_exceptions import BaseAPIException
 
-
-class ListingNotFoundException(NotFoundException):
-    """Исключение, когда листинг не найден"""
+class ListingNotFoundException(BaseAPIException):
+    """Исключение: публикация не найдена"""
     
-    def __init__(self, listing_id: int):
-        super().__init__(resource_name="Listing", resource_id=listing_id)
-
-
-class ListingValidationException(ValidationException):
-    """Исключение для ошибок валидации листинга"""
-    
-    def __init__(self, detail: str = "Listing validation error", errors: list = None):
-        super().__init__(detail=detail, errors=errors, error_code="LISTING_VALIDATION_ERROR")
-
-
-class ListingInactiveException(BadRequestException):
-    """Исключение, когда листинг неактивен"""
-    
-    def __init__(self, listing_id: int):
-        detail = f"Listing with ID {listing_id} is inactive"
+    def __init__(self, listing_id: int = None, detail: str = None):
+        if detail is None:
+            if listing_id:
+                detail = f"Публикация с ID {listing_id} не найдена"
+            else:
+                detail = "Публикация не найдена"
+                
         super().__init__(
-            detail=detail,
-            error_code="LISTING_INACTIVE",
-            extra={"listing_id": listing_id}
+            status_code=404,
+            error_code="listing_not_found",
+            detail=detail
+        )
+
+class ListingValidationException(BaseAPIException):
+    """Исключение: ошибка валидации публикации"""
+    
+    def __init__(self, detail: str = None):
+        if detail is None:
+            detail = "Ошибка валидации данных публикации"
+            
+        super().__init__(
+            status_code=400,
+            error_code="listing_validation_error",
+            detail=detail
+        )
+
+class ListingInactiveException(BaseAPIException):
+    """Исключение: публикация неактивна"""
+    
+    def __init__(self, listing_id: int = None, detail: str = None):
+        if detail is None:
+            if listing_id:
+                detail = f"Публикация с ID {listing_id} неактивна"
+            else:
+                detail = "Публикация неактивна"
+                
+        super().__init__(
+            status_code=400,
+            error_code="listing_inactive",
+            detail=detail
         )

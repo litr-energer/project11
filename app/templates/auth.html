@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Вход — KeyVault</title>
+  <title>Вход и регистрация — ЦифраМаркет</title>
   <link rel="icon" href="assets/key-icon.png" type="image/png">
   <link rel="stylesheet" href="/app/static/css/styles.css">
 </head>
@@ -11,60 +11,516 @@
   <header class="site-header">
     <div class="container header-inner">
       <div class="brand">
-        <img src="#" alt="logo" class="logo" onerror="this.style.display='none'">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
         <div>
-          <h1>KeyVault</h1>
-          <p class="tag">Вход в аккаунт</p>
+          <h1>ЦифраМаркет</h1>
+          <p class="tag">Вход и регистрация</p>
         </div>
       </div>
       <nav class="nav">
         <button onclick="location.href='/'" class="btn ghost">Главная</button>
+        <button onclick="location.href='/account.html'" class="btn ghost">Мой аккаунт</button>
       </nav>
     </div>
   </header>
 
   <main class="container" style="display:flex;align-items:center;justify-content:center;min-height:60vh">
-    <div class="modal-panel" style="max-width:420px;padding:18px">
-      <header class="modal-header">
-        <h3 id="authTitle">Войти</h3>
-      </header>
-      <div style="display:grid;gap:10px;padding-top:6px">
-        <input id="authName" placeholder="Имя пользователя / email" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-        <input id="authPass" type="password" placeholder="Пароль" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button id="toRegister" class="btn ghost">Регистрация</button>
-          <button id="submitAuth" class="btn primary">Войти</button>
-        </div>
+    <div class="modal-panel" style="max-width:440px;padding:20px;width:100%;">
+      <div class="form-toggle" style="margin-bottom:20px;">
+        <button id="login-toggle" class="toggle-btn active">Вход</button>
+        <button id="register-toggle" class="toggle-btn">Регистрация</button>
       </div>
-      <div id="authMsg" style="margin-top:10px;color:var(--muted);font-size:13px"></div>
+      
+      <!-- Форма входа -->
+      <form id="login-form" class="auth-form active">
+        <h3 style="margin:0 0 20px 0;">Вход в аккаунт</h3>
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="Ваш email" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Пароль</label>
+          <input type="password" id="login-password" placeholder="Ваш пароль" required>
+          <div class="password-toggle">
+            <i class="feather eye" id="login-password-toggle"></i>
+          </div>
+        </div>
+        <div class="form-options">
+          <label class="remember-me">
+            <input type="checkbox" id="remember-me">
+            <span>Запомнить меня</span>
+          </label>
+        </div>
+        <button type="submit" class="btn primary" style="width:100%;margin-top:10px;">
+          <span class="btn-text">Войти</span>
+        </button>
+        <div class="form-footer">
+          <p style="text-align:center;margin-top:15px;color:var(--muted);">
+            Нет аккаунта? <a href="#" id="switch-to-register" style="color:var(--accent-1);">Зарегистрироваться</a>
+          </p>
+        </div>
+      </form>
+      
+      <!-- Форма регистрации -->
+      <form id="register-form" class="auth-form">
+        <h3 style="margin:0 0 20px 0;">Регистрация аккаунта</h3>
+        <div class="form-group">
+          <label for="register-name">Имя пользователя</label>
+          <input type="text" id="register-name" placeholder="Ваше имя" required>
+        </div>
+        <div class="form-group">
+          <label for="register-email">Email</label>
+          <input type="email" id="register-email" placeholder="Ваш email" required>
+        </div>
+        <div class="form-group">
+          <label for="register-password">Пароль</label>
+          <input type="password" id="register-password" placeholder="Придумайте пароль" required>
+          <div class="password-toggle">
+            <i class="feather eye" id="register-password-toggle"></i>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="register-confirm-password">Подтвердите пароль</label>
+          <input type="password" id="register-confirm-password" placeholder="Повторите пароль" required>
+          <div class="password-toggle">
+            <i class="feather eye" id="register-confirm-password-toggle"></i>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="terms-checkbox">
+            <input type="checkbox" id="accept-terms" required>
+            <span>Я соглашаюсь с <a href="#" style="color:var(--accent-1);">условиями использования</a></span>
+          </label>
+        </div>
+        <button type="submit" class="btn primary" style="width:100%;margin-top:10px;">
+          <span class="btn-text">Зарегистрироваться</span>
+        </button>
+        <div class="form-footer">
+          <p style="text-align:center;margin-top:15px;color:var(--muted);">
+            Уже есть аккаунт? <a href="#" id="switch-to-login" style="color:var(--accent-1);">Войти</a>
+          </p>
+        </div>
+      </form>
+      
+      <div id="message-container" style="margin-top:15px;"></div>
     </div>
   </main>
 
+  <style>
+    .form-toggle {
+      display: flex;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      transition: all 0.3s ease;
+    }
+    
+    .toggle-btn.active {
+      background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+    }
+    
+    .auth-form {
+      display: none;
+    }
+    
+    .auth-form.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+      position: relative;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      font-size: 14px;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent-1);
+    }
+    
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 35px;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    
+    .password-toggle:hover {
+      color: var(--accent-1);
+    }
+    
+    .form-options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .remember-me, .terms-checkbox {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    
+    .remember-me input, .terms-checkbox input {
+      margin-right: 8px;
+    }
+    
+    .form-footer a {
+      text-decoration: none;
+    }
+    
+    .form-footer a:hover {
+      text-decoration: underline;
+    }
+    
+    #message-container {
+      padding: 10px;
+      border-radius: 8px;
+      display: none;
+    }
+    
+    .message-success {
+      background: rgba(40, 167, 69, 0.15);
+      border-left: 4px solid #28a745;
+      color: #a3e9b4;
+    }
+    
+    .message-error {
+      background: rgba(220, 53, 69, 0.15);
+      border-left: 4px solid #dc3545;
+      color: #f8a5b2;
+    }
+    
+    .message-info {
+      background: rgba(0, 180, 216, 0.15);
+      border-left: 4px solid #00b4d8;
+      color: #a3e0eb;
+    }
+  </style>
+
   <script>
-    function showToast(msg){ alert(msg); }
-    document.getElementById('toRegister').addEventListener('click', ()=>{
-      document.getElementById('authTitle').textContent = 'Регистрация';
+    const API_BASE_URL = 'http://localhost:8000';
+    
+    // DOM элементы
+    const loginToggle = document.getElementById('login-toggle');
+    const registerToggle = document.getElementById('register-toggle');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const switchToRegister = document.getElementById('switch-to-register');
+    const switchToLogin = document.getElementById('switch-to-login');
+    const messageContainer = document.getElementById('message-container');
+    
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+      // Переключение между формами входа и регистрации
+      loginToggle.addEventListener('click', () => switchForm('login'));
+      registerToggle.addEventListener('click', () => switchForm('register'));
+      switchToRegister.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchForm('register');
+      });
+      switchToLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchForm('login');
+      });
+      
+      // Обработчики показа/скрытия пароля
+      document.getElementById('login-password-toggle').addEventListener('click', () => 
+        togglePasswordVisibility('login-password', 'login-password-toggle'));
+      document.getElementById('register-password-toggle').addEventListener('click', () => 
+        togglePasswordVisibility('register-password', 'register-password-toggle'));
+      document.getElementById('register-confirm-password-toggle').addEventListener('click', () => 
+        togglePasswordVisibility('register-confirm-password', 'register-confirm-password-toggle'));
+      
+      // Обработчики отправки форм
+      loginForm.addEventListener('submit', handleLogin);
+      registerForm.addEventListener('submit', handleRegistration);
+      
+      // Проверяем, есть ли сохраненные данные для входа
+      checkSavedCredentials();
     });
-    document.getElementById('submitAuth').addEventListener('click', ()=>{
-      const name = document.getElementById('authName').value.trim();
-      const pass = document.getElementById('authPass').value;
-      if(!name || !pass){ document.getElementById('authMsg').textContent = 'Введите имя и пароль'; return; }
-      const stored = JSON.parse(localStorage.getItem('kv_users')||'{}');
-      if(document.getElementById('authTitle').textContent === 'Регистрация'){
-        if(stored[name]){ document.getElementById('authMsg').textContent = 'Пользователь уже существует'; return; }
-        stored[name] = { name, pass };
-        localStorage.setItem('kv_users', JSON.stringify(stored));
-        localStorage.setItem('kv_user', JSON.stringify({ name }));
-        location.href = '/';
+    
+    // Переключение между формами
+    function switchForm(formType) {
+      if (formType === 'login') {
+        loginToggle.classList.add('active');
+        registerToggle.classList.remove('active');
+        loginForm.classList.add('active');
+        registerForm.classList.remove('active');
       } else {
-        if(stored[name] && stored[name].pass === pass){
-          localStorage.setItem('kv_user', JSON.stringify({ name }));
-          location.href = '/';
-        } else {
-          document.getElementById('authMsg').textContent = 'Неверные данные';
-        }
+        loginToggle.classList.remove('active');
+        registerToggle.classList.add('active');
+        loginForm.classList.remove('active');
+        registerForm.classList.add('active');
       }
-    });
+      clearMessages();
+    }
+    
+    // Показать/скрыть пароль
+    function togglePasswordVisibility(inputId, toggleId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(toggleId);
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('eye');
+        icon.classList.add('eye-off');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('eye-off');
+        icon.classList.add('eye');
+      }
+    }
+    
+    // Показать сообщение
+    function showMessage(message, type = 'info') {
+      messageContainer.innerHTML = `
+        <div class="message-${type}">
+          <p style="margin:0;padding:5px 0;">${message}</p>
+        </div>
+      `;
+      messageContainer.style.display = 'block';
+      
+      // Автоматически скрыть сообщение через 5 секунд (кроме ошибок)
+      if (type !== 'error') {
+        setTimeout(() => {
+          messageContainer.style.display = 'none';
+        }, 5000);
+      }
+    }
+    
+    // Очистить сообщения
+    function clearMessages() {
+      messageContainer.style.display = 'none';
+      messageContainer.innerHTML = '';
+    }
+    
+    // Обработка входа
+    async function handleLogin(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const rememberMe = document.getElementById('remember-me').checked;
+      
+      // Валидация
+      if (!email || !password) {
+        showMessage('Пожалуйста, заполните все поля', 'error');
+        return;
+      }
+      
+      try {
+        // Показать состояние загрузки
+        const submitBtn = loginForm.querySelector('.btn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const originalText = btnText.textContent;
+        btnText.textContent = 'Вход...';
+        submitBtn.disabled = true;
+        
+        // Отправляем запрос на аутентификацию
+        const response = await fetch(`${API_BASE_URL}/users/authenticate?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Ошибка аутентификации');
+        }
+        
+        const data = await response.json();
+        
+        showMessage(`Добро пожаловать, ${data.name}!`, 'success');
+        
+        // Сохраняем данные пользователя
+        const userData = {
+          id: data.user_id,
+          name: data.name,
+          email: data.email
+        };
+        
+        localStorage.setItem('kv_user', JSON.stringify(userData));
+        
+        // Если выбрано "Запомнить меня", сохраняем email
+        if (rememberMe) {
+          localStorage.setItem('kv_remembered_email', email);
+        } else {
+          localStorage.removeItem('kv_remembered_email');
+        }
+        
+        // Перенаправление на главную страницу
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+        
+      } catch (error) {
+        console.error('Ошибка при входе:', error);
+        showMessage('Неверный email или пароль', 'error');
+      } finally {
+        // Восстановить кнопку
+        const submitBtn = loginForm.querySelector('.btn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        btnText.textContent = 'Войти';
+        submitBtn.disabled = false;
+      }
+    }
+    
+    // Обработка регистрации
+    async function handleRegistration(e) {
+      e.preventDefault();
+      
+      const name = document.getElementById('register-name').value;
+      const email = document.getElementById('register-email').value;
+      const password = document.getElementById('register-password').value;
+      const confirmPassword = document.getElementById('register-confirm-password').value;
+      const acceptTerms = document.getElementById('accept-terms').checked;
+      
+      // Валидация
+      if (!name || !email || !password || !confirmPassword) {
+        showMessage('Пожалуйста, заполните все поля', 'error');
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        showMessage('Пароли не совпадают', 'error');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showMessage('Пароль должен содержать минимум 6 символов', 'error');
+        return;
+      }
+      
+      if (!acceptTerms) {
+        showMessage('Необходимо принять условия использования', 'error');
+        return;
+      }
+      
+      try {
+        // Показать состояние загрузки
+        const submitBtn = registerForm.querySelector('.btn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const originalText = btnText.textContent;
+        btnText.textContent = 'Регистрация...';
+        submitBtn.disabled = true;
+        
+        // Получаем список ролей, чтобы присвоить пользователю роль по умолчанию
+        let roleId = 2; // Значение по умолчанию для обычного пользователя
+        
+        try {
+          const rolesResponse = await fetch(`${API_BASE_URL}/roles/`);
+          if (rolesResponse.ok) {
+            const roles = await rolesResponse.json();
+            // Ищем роль "user" или "client"
+            const defaultRole = roles.find(role => 
+              role.name.toLowerCase() === 'user' || 
+              role.name.toLowerCase() === 'client' ||
+              role.name.toLowerCase() === 'customer'
+            );
+            if (defaultRole) {
+              roleId = defaultRole.id;
+            }
+          }
+        } catch (rolesError) {
+          console.warn('Не удалось получить список ролей, используется значение по умолчанию', rolesError);
+        }
+        
+        // Отправляем запрос на создание пользователя
+        const response = await fetch(`${API_BASE_URL}/users/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            password: password,
+            role_id: roleId
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          showMessage('Регистрация успешна! Теперь вы можете войти в систему.', 'success');
+          
+          // Переключаемся на форму входа
+          setTimeout(() => {
+            switchForm('login');
+            // Заполняем email в форме входа
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-password').focus();
+          }, 2000);
+        } else {
+          // Обработка ошибок от сервера
+          if (response.status === 409) {
+            showMessage('Пользователь с таким email уже существует', 'error');
+          } else if (response.status === 422) {
+            const errorData = await response.json();
+            showMessage('Ошибка валидации данных', 'error');
+          } else {
+            showMessage('Ошибка при регистрации', 'error');
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при регистрации:', error);
+        showMessage('Ошибка соединения с сервером', 'error');
+      } finally {
+        // Восстановить кнопку
+        const submitBtn = registerForm.querySelector('.btn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        btnText.textContent = 'Зарегистрироваться';
+        submitBtn.disabled = false;
+      }
+    }
+    
+    // Проверка сохраненных данных для входа
+    function checkSavedCredentials() {
+      const rememberedEmail = localStorage.getItem('kv_remembered_email');
+      if (rememberedEmail) {
+        document.getElementById('login-email').value = rememberedEmail;
+        document.getElementById('remember-me').checked = true;
+        document.getElementById('login-password').focus();
+      }
+    }
   </script>
 </body>
 </html>

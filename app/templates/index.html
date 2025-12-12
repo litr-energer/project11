@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Steam Keys Store</title>
+  <title>ЦифраМаркет</title>
 
   <!-- Favicons -->
   <link rel="icon" href="assets/key-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="assets/key-icon.png">
 
   <!-- Fonts -->
-  <link href="#" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;700&display=swap" rel="stylesheet">
 
   <!-- Simple icon set -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="/app/static/css/styles.css">
 
   <!-- Import map (no external JS frameworks required, but kept for extensibility) -->
   <script type="importmap">
@@ -31,7 +31,7 @@
       <div class="brand">
         <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
         <div>
-          <h1>KeyVault</h1>
+          <h1>ЦифраМаркет</h1>
           <p class="tag">Электронные книги и гиды по играм</p>
         </div>
       </div>
@@ -39,7 +39,17 @@
       <nav class="nav">
         <input id="search" class="search" placeholder="Поиск игр, например Dota 2" />
         <div id="authArea" style="display:flex;gap:8px;align-items:center">
-          <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'">Войти</button>
+          <div id="userProfile" style="display:none;">
+            <button id="profileBtn" class="profile-btn" onclick="location.href='/account.html'">
+            <div class="profile-avatar" id="userAvatar"></div>
+            <span id="userName"></span>
+            </button>
+            <button id="logoutBtn" class="btn ghost" style="font-size:13px;padding:6px 8px;">Выйти</button>
+          </div>
+          <div id="authButtons" style="display:flex;gap:8px;align-items:center">
+            <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'">Войти</button>
+            <button id="registerBtn" class="btn primary" onclick="location.href='/auth.html#register'">Регистрация</button>
+          </div>
         </div>
         <button class="btn ghost" title="Избранное" onclick="location.href='/favorite.html'">Избранное (<span id="favCount">0</span>)</button>
         <button id="cartBtn" class="btn ghost" onclick="location.href='/cart.html'">Корзина (<span id="cartCount">0</span>)</button>
@@ -58,7 +68,7 @@
         <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg" alt="CS:GO">
         <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/883710/header.jpg" alt="Resident Evil">
       </div>
-      <h2 class="preview-title">Добро пожаловать в KeyVault</h2>
+      <h2 class="preview-title">Добро пожаловать в ЦифраМаркет</h2>
     </div>
   </section>
 
@@ -154,7 +164,7 @@
     </section>
 
     <section class="info">
-      <h2>Почему KeyVault?</h2>
+      <h2>Почему ЦифраМаркет?</h2>
       <ul>
         <li>Электронные издания высокого качества</li>
         <li>Гайды, артбуки и аналитика по играм</li>
@@ -258,7 +268,6 @@
 
   <!-- Toast -->
   <div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
-
-  <script type="module" src="/static/js/app.js"></script>
+  <script type="module" src="/app/static/js/app.js"></script>
 </body>
 </html>
