@@ -1,3 +1,5 @@
+# app/services/product_service.py
+
 from app.repositories.product_repository import ProductRepository
 from app.services.service import BaseService
 from app.models.products import ProductModel
@@ -12,4 +14,5 @@ class ProductService(BaseService[ProductModel]):
         return self.product_repository.get_by_category(category, skip, limit)
     
     def get_active_products(self, skip: int = 0, limit: int = 100):
-        return self.product_repository.filter_by(is_acctive=True)
+        # ИСПРАВЛЕНО: is_acctive → is_active
+        return self.product_repository.filter_by(is_active=True)

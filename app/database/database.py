@@ -11,7 +11,7 @@ load_dotenv()
 # Получаем настройки базы данных из переменных окружения
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "sqlite:///./app.db"  # Значение по умолчанию для SQLite
+    "sqlite:///./test.db"  # Значение по умолчанию для SQLite
 )
 
 # Создаем движок базы данных

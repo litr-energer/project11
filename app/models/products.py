@@ -14,4 +14,4 @@ class ProductModel(Base):
     category: Mapped[str] = mapped_column(String(100), nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     popularity: Mapped[int] = mapped_column(Integer, default=0)
-    is_acctive: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)

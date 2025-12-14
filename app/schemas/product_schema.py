@@ -10,7 +10,7 @@ class ProductBase(BaseModel):
     category: str
     image_url: Optional[str] = None
     popularity: int = 0
-    is_acctive: bool = True
+    is_active: bool = True
 
 
 class ProductCreate(ProductBase):
@@ -24,7 +24,7 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = None
     image_url: Optional[str] = None
     popularity: Optional[int] = None
-    is_acctive: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 class Product(ProductBase):

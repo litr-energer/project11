@@ -83,7 +83,8 @@ def activate_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    product_service.update(product_id, {"is_acctive": True})
+    # ИСПРАВЛЕНО: is_acctive → is_active
+    product_service.update(product_id, {"is_active": True})
     return {"message": "Product activated successfully"}
 
 @router.patch("/{product_id}/deactivate")
@@ -95,5 +96,6 @@ def deactivate_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    product_service.update(product_id, {"is_acctive": False})
+    # ИСПРАВЛЕНО: is_acctive → is_active
+    product_service.update(product_id, {"is_active": False})
     return {"message": "Product deactivated successfully"}
