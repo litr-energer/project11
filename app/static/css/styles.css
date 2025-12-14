@@ -399,3 +399,35 @@ body{
     padding: 5px 6px;
   }
 }
+
+/* Добавим в styles.css или прямо в index.html */
+.btn.ghost.active-chip {
+  background: rgba(var(--accent-1-rgb), 0.1) !important;
+  color: var(--accent-1) !important;
+  border-color: var(--accent-1) !important;
+}
+
+.btn.ghost[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.ghost[title] {
+  position: relative;
+}
+
+.btn.ghost[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 5px;
+}

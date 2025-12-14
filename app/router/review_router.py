@@ -1,120 +1,136 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database.database import get_db
-from app.schemas import Review, ReviewCreate, ReviewUpdate
-from app.services.review_service import ReviewService
-from app.repositories.review_repository import ReviewRepository
+from app.schemas.favorite_schema import Favorite, FavoriteCreate
+from app.services.favorite_service import FavoriteService
+from app.repositories.favorite_repository import FavoriteRepository
+from app.exceptions.favorite_exceptions import (
+    FavoriteNotFoundException,
+    FavoriteAlreadyExistsException,
+    FavoriteValidationException
+)
 
-router = APIRouter(prefix="/reviews", tags=["reviews"])
+# Создаем роутер - обратите внимание на переменную 'router' (не 'Router')
+router = APIRouter(prefix="/favorites", tags=["favorites"])
 
-def get_review_service(db: Session = Depends(get_db)) -> ReviewService:
-    review_repository = ReviewRepository(db)
-    return ReviewService(review_repository)
+def get_favorite_service(db: Session = Depends(get_db)) -> FavoriteService:
+    favorite_repository = FavoriteRepository(db)
+    return FavoriteService(favorite_repository)
 
-@router.get("/", response_model=List[Review])
-def get_reviews(
-    skip: int = 0,
-    limit: int = 100,
-    user_id: int = None,
-    product_id: int = None,
-    min_rating: int = None,
-    max_rating: int = None,
-    verified_only: bool = False,
-    review_service: ReviewService = Depends(get_review_service)
+@router.get("/user/{user_id}", response_model=List[Favorite])
+def get_user_favorites(
+    user_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    favorite_service: FavoriteService = Depends(get_favorite_service)
 ):
-    if user_id:
-        return review_service.get_by_user(user_id, skip, limit)
-    elif product_id:
-        return review_service.get_by_product(product_id, skip, limit)
-    elif min_rating is not None or max_rating is not None:
-        min_rating = min_rating or 1
-        max_rating = max_rating or 5
-        return review_service.get_by_rating_range(min_rating, max_rating, skip, limit)
-    elif verified_only:
-        return review_service.get_verified_reviews(skip, limit)
-    else:
-        return review_service.get_all(skip, limit)
+    """
+    Получить все избранные товары пользователя с пагинацией.
+    """
+    try:
+        return favorite_service.get_user_favorites(user_id, skip, limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{review_id}", response_model=Review)
-def get_review(
-    review_id: int,
-    review_service: ReviewService = Depends(get_review_service)
+@router.get("/user/{user_id}/count")
+def get_user_favorites_count(
+    user_id: int,
+    favorite_service: FavoriteService = Depends(get_favorite_service)
 ):
-    review = review_service.get(review_id)
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
-    return review
+    """
+    Получить количество избранных товаров пользователя.
+    """
+    try:
+        favorites = favorite_service.get_user_favorites(user_id, 0, 1000)
+        return {"user_id": user_id, "count": len(favorites)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/", response_model=Review)
-def create_review(
-    review_data: ReviewCreate,
-    review_service: ReviewService = Depends(get_review_service)
+@router.post("/", response_model=Favorite)
+def add_to_favorites(
+    favorite_data: FavoriteCreate,
+    favorite_service: FavoriteService = Depends(get_favorite_service)
 ):
-    # Проверяем, что указан хотя бы один тип товара
-    if not any([review_data.products_id, review_data.listing_id, review_data.author_listing_id]):
-        raise HTTPException(
-            status_code=400, 
-            detail="At least one of products_id, listing_id, or author_listing_id must be provided"
-        )
-    
-    # Проверяем рейтинг
-    if not 1 <= review_data.rating <= 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
-    
-    return review_service.create(review_data.dict())
+    try:
+        # Проверяем, что указан хотя бы один тип товара
+        if not any([favorite_data.products_id, favorite_data.listing_id, favorite_data.author_listing_id]):
+            raise HTTPException(
+                status_code=400, 
+                detail="At least one of products_id, listing_id, or author_listing_id must be provided"
+            )
+        
+        # Проверяем, не добавлен ли уже товар в избранное
+        filters = {}
+        if favorite_data.products_id:
+            filters["products_id"] = favorite_data.products_id
+        if favorite_data.listing_id:
+            filters["listing_id"] = favorite_data.listing_id
+        if favorite_data.author_listing_id:
+            filters["author_listing_id"] = favorite_data.author_listing_id
+        
+        if favorite_service.is_item_favorited(favorite_data.user_id, **filters):
+            raise FavoriteAlreadyExistsException(
+                user_id=favorite_data.user_id,
+                item_type="product" if favorite_data.products_id else "listing",
+                item_id=favorite_data.products_id or favorite_data.listing_id or favorite_data.author_listing_id
+            )
+        
+        return favorite_service.add_to_favorites(favorite_data.user_id, favorite_data.dict())
+    except FavoriteAlreadyExistsException as e:
+        raise e
+    except Exception as e:
+        raise FavoriteValidationException(detail=str(e))
 
-@router.put("/{review_id}", response_model=Review)
-def update_review(
-    review_id: int,
-    review_data: ReviewUpdate,
-    review_service: ReviewService = Depends(get_review_service)
+@router.delete("/{favorite_id}")
+def remove_from_favorites(
+    favorite_id: int,
+    favorite_service: FavoriteService = Depends(get_favorite_service)
 ):
-    review = review_service.get(review_id)
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
-    
-    if review_data.rating and not 1 <= review_data.rating <= 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
-    
-    return review_service.update(review_id, review_data.dict(exclude_unset=True))
+    try:
+        success = favorite_service.delete(favorite_id)
+        return {"message": "Removed from favorites"}
+    except FavoriteNotFoundException as e:
+        raise e
 
-@router.delete("/{review_id}")
-def delete_review(
-    review_id: int,
-    review_service: ReviewService = Depends(get_review_service)
+@router.get("/check/{user_id}")
+def check_if_favorited(
+    user_id: int,
+    product_id: int = Query(None),
+    listing_id: int = Query(None),
+    author_listing_id: int = Query(None),
+    favorite_service: FavoriteService = Depends(get_favorite_service)
 ):
-    success = review_service.delete(review_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Review not found")
-    return {"message": "Review deleted successfully"}
-
-@router.get("/average-rating")
-def get_average_rating(
-    product_id: int = None,
-    listing_id: int = None,
-    author_listing_id: int = None,
-    review_service: ReviewService = Depends(get_review_service)
-):
+    """
+    Проверить, добавлен ли товар в избранное у пользователя.
+    """
     filters = {}
-    if product_id:
+    if product_id is not None:
         filters["products_id"] = product_id
-    if listing_id:
+    if listing_id is not None:
         filters["listing_id"] = listing_id
-    if author_listing_id:
+    if author_listing_id is not None:
         filters["author_listing_id"] = author_listing_id
     
-    average = review_service.calculate_average_rating(**filters)
-    return {"average_rating": round(average, 2)}
-
-@router.patch("/{review_id}/verify")
-def verify_review(
-    review_id: int,
-    review_service: ReviewService = Depends(get_review_service)
-):
-    review = review_service.get(review_id)
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
+    if not filters:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one of product_id, listing_id, or author_listing_id must be provided"
+        )
     
-    review_service.update(review_id, {"is_verified": True})
-    return {"message": "Review verified successfully"}
+    is_favorited = favorite_service.is_item_favorited(user_id, **filters)
+    return {"is_favorited": is_favorited}
+
+@router.get("/user/{user_id}/exists")
+def check_user_favorites_exist(
+    user_id: int,
+    favorite_service: FavoriteService = Depends(get_favorite_service)
+):
+    """
+    Проверить, есть ли у пользователя избранные товары.
+    """
+    try:
+        favorites = favorite_service.get_user_favorites(user_id, 0, 1)
+        return {"user_id": user_id, "has_favorites": len(favorites) > 0}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

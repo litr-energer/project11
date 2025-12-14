@@ -1,4 +1,5 @@
-// /app/static/js/app.js (ПОЛНЫЙ КОД ~1700 строк)
+
+// /app/static/js/app.js (ПОЛНЫЙ КОД С ИЗБРАННЫМ ПО АККАУНТУ)
 
 // Базовый URL API
 const API_BASE_URL = '';
@@ -7,7 +8,7 @@ const API_BASE_URL = '';
 const AppState = {
   user: null,
   cart: {},
-  favorites: [],
+  favorites: [],  // Теперь содержит объекты избранного с сервера
   products: [],
   marketListings: [],
   accountListings: [],
@@ -51,6 +52,239 @@ function showToast(message, type = 'info') {
 }
 
 // ====================
+// API ФУНКЦИИ ДЛЯ ИЗБРАННОГО
+// ====================
+function updateFavoriteButtons() {
+  document.querySelectorAll('[data-action="toggle-favorite"]').forEach(button => {
+    const itemId = button.dataset.id;
+    const itemType = button.dataset.type;
+    
+    if (itemId && itemType) {
+      const isFavorited = AppState.user ? isItemFavorited(itemId, itemType) : false;
+      
+      button.setAttribute('aria-pressed', isFavorited);
+      button.classList.toggle('active-chip', isFavorited);
+      button.textContent = AppState.user ? (isFavorited ? 'В избранном' : 'В избранное') : 'В избранное';
+    }
+  });
+}
+
+async function loadUserFavorites() {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      AppState.favorites = [];
+      updateFavCount();
+      updateFavoriteButtons(); // Обновляем кнопки
+      return [];
+    }
+    
+    console.log('Загрузка избранного для пользователя:', user.id);
+    
+    const response = await fetch(`${API_BASE_URL}/favorites/user/${user.id}?skip=0&limit=100`);
+    
+    if (response.ok) {
+      const favoritesData = await response.json();
+      console.log('Загружены избранные с сервера:', favoritesData);
+      
+      // Сохраняем полные объекты избранного
+      AppState.favorites = favoritesData;
+      
+      updateFavCount();
+      updateFavoriteButtons(); // ОБНОВЛЯЕМ КНОПКИ ПОСЛЕ ЗАГРУЗКИ
+      console.log('Избранное загружено:', AppState.favorites.length, 'шт.');
+      return AppState.favorites;
+    } else {
+      console.warn('Ошибка загрузки избранного:', response.status);
+      showToast('Ошибка загрузки избранного', 'error');
+      return [];
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки избранного:', error);
+    showToast('Ошибка загрузки избранного', 'error');
+    return [];
+  }
+}
+
+async function addToFavorites(itemId, itemType) {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      showToast('Для добавления в избранное нужно войти в аккаунт', 'error');
+      return { success: false, isFavorited: false };
+    }
+    
+    const favoriteData = {
+      user_id: user.id
+    };
+    
+    // Определяем тип товара
+    const id = parseInt(itemId);
+    if (isNaN(id)) {
+      throw new Error('Неверный ID товара');
+    }
+    
+    if (itemType === 'product') {
+      favoriteData.products_id = id;
+    } else if (itemType === 'market') {
+      favoriteData.listing_id = id;
+    } else if (itemType === 'account') {
+      favoriteData.author_listing_id = id;
+    } else {
+      throw new Error('Неизвестный тип товара');
+    }
+    
+    console.log('Добавление в избранное:', favoriteData);
+    
+    const response = await fetch(`${API_BASE_URL}/favorites/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(favoriteData)
+    });
+    
+    if (response.ok) {
+      const newFavorite = await response.json();
+      
+      // Добавляем в локальное состояние
+      AppState.favorites.push(newFavorite);
+      
+      updateFavCount();
+      console.log('Добавлено в избранное:', newFavorite);
+      showToast('Добавлено в избранное', 'success');
+      return { success: true, isFavorited: true, favorite: newFavorite };
+      
+    } else if (response.status === 409) {
+      // Уже в избранном
+      console.log('Товар уже в избранном');
+      showToast('Уже в избранном', 'info');
+      return { success: true, isFavorited: true };
+      
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Ошибка добавления в избранное:', error);
+    showToast(error.message || 'Ошибка добавления в избранное', 'error');
+    return { success: false, isFavorited: false };
+  }
+}
+
+async function removeFromFavorites(itemId, itemType) {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      showToast('Нужно войти в аккаунт', 'error');
+      return { success: false, isFavorited: true };
+    }
+    
+    // Находим запись избранного
+    const favorite = findFavoriteByItem(itemId, itemType);
+    if (!favorite) {
+      console.warn('Запись избранного не найдена локально');
+      // Все равно удаляем из локального состояния
+      removeFavoriteFromLocalState(itemId, itemType);
+      return { success: true, isFavorited: false };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/favorites/${favorite.id}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.ok) {
+      // Удаляем из локального состояния
+      const index = AppState.favorites.findIndex(f => f.id === favorite.id);
+      if (index > -1) {
+        AppState.favorites.splice(index, 1);
+      }
+      
+      updateFavCount();
+      console.log('Удалено из избранного:', favorite.id);
+      showToast('Удалено из избранного', 'info');
+      return { success: true, isFavorited: false };
+      
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Ошибка удаления из избранного:', error);
+    showToast(error.message || 'Ошибка удаления из избранного', 'error');
+    return { success: false, isFavorited: true };
+  }
+}
+
+function findFavoriteByItem(itemId, itemType) {
+  const id = parseInt(itemId);
+  if (isNaN(id)) return null;
+  
+  return AppState.favorites.find(fav => {
+    if (itemType === 'product') return fav.products_id === id;
+    if (itemType === 'market') return fav.listing_id === id;
+    if (itemType === 'account') return fav.author_listing_id === id;
+    return false;
+  });
+}
+
+
+function removeFavoriteFromLocalState(itemId, itemType) {
+  const favorite = findFavoriteByItem(itemId, itemType);
+  if (favorite) {
+    const index = AppState.favorites.findIndex(f => f.id === favorite.id);
+    if (index > -1) {
+      AppState.favorites.splice(index, 1);
+      updateFavCount();
+    }
+  }
+}
+
+function isItemFavorited(itemId, itemType) {
+  // Приводим itemId к числу для сравнения
+  const id = parseInt(itemId);
+  if (isNaN(id)) return false;
+  
+  return AppState.favorites.some(fav => {
+    if (itemType === 'product') return fav.products_id === id;
+    if (itemType === 'market') return fav.listing_id === id;
+    if (itemType === 'account') return fav.author_listing_id === id;
+    return false;
+  });
+}
+
+function updateFavCount() {
+  const favCount = document.getElementById('favCount');
+  if (favCount) {
+    favCount.textContent = AppState.favorites.length;
+  }
+}
+
+// ====================
+// ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ИЗБРАННОГО
+// ====================
+
+async function toggleFavorite(itemId, itemType) {
+  // Если пользователь не авторизован, показываем сообщение
+  if (!AppState.user) {
+    showToast('Для добавления в избранное нужно войти в аккаунт', 'error');
+    return false;
+  }
+  
+  const isCurrentlyFavorited = isItemFavorited(itemId, itemType);
+  
+  if (isCurrentlyFavorited) {
+    // Удаляем из избранного
+    const result = await removeFromFavorites(itemId, itemType);
+    return !result.isFavorited; // Возвращаем новое состояние
+  } else {
+    // Добавляем в избранное
+    const result = await addToFavorites(itemId, itemType);
+    return result.isFavorited; // Возвращаем новое состояние
+  }
+}
+
+// ====================
 // ЗАГРУЗКА СОСТОЯНИЯ И АВТОРИЗАЦИЯ
 // ====================
 
@@ -59,10 +293,6 @@ function loadStateFromStorage() {
     // Корзина
     const cart = JSON.parse(localStorage.getItem('kv_cart') || '{}');
     AppState.cart = cart;
-    
-    // Избранное
-    const favorites = JSON.parse(localStorage.getItem('kv_favs') || '[]');
-    AppState.favorites = favorites;
     
     // Пользователь
     const user = JSON.parse(localStorage.getItem('kv_user') || 'null');
@@ -85,13 +315,13 @@ function loadStateFromStorage() {
   }
 }
 
-function checkAuthStatus() {
+async function checkAuthStatus() {
   const user = JSON.parse(localStorage.getItem('kv_user') || 'null');
   const authArea = document.getElementById('authArea');
   const userProfile = document.getElementById('userProfile');
   const authButtons = document.getElementById('authButtons');
   
-  if (user && user.name) {
+  if (user && user.name && user.id) {
     AppState.user = user;
     
     // Пользователь авторизован
@@ -101,14 +331,26 @@ function checkAuthStatus() {
     // Обновляем аватар и имя
     updateUserProfileUI(user);
     
+    // Загружаем избранное пользователя
+    await loadUserFavorites();
+    
+    // Обновляем кнопки избранного на странице
+    updateFavoriteButtons();
+    
     // Добавляем обработчик выхода
     setupLogoutHandler();
   } else {
     // Пользователь не авторизован
     AppState.user = null;
+    AppState.favorites = []; // Очищаем избранное при выходе
     if (userProfile) userProfile.style.display = 'none';
     if (authButtons) authButtons.style.display = 'flex';
+    
+    // Обновляем кнопки избранного на странице
+    updateFavoriteButtons();
   }
+  
+  updateFavCount();
 }
 
 function updateUserProfileUI(user) {
@@ -147,12 +389,13 @@ function setupLogoutHandler() {
 function logoutUser() {
   localStorage.removeItem('kv_user');
   AppState.user = null;
+  AppState.favorites = []; // Очищаем избранное
   checkAuthStatus();
   showToast('Вы вышли из аккаунта', 'info');
 }
 
 // ====================
-// КОРЗИНА И ИЗБРАННОЕ
+// КОРЗИНА
 // ====================
 
 function saveCart() {
@@ -219,36 +462,8 @@ function updateCartQuantity(itemId, newQty) {
   }
 }
 
-function saveFavorites() {
-  localStorage.setItem('kv_favs', JSON.stringify(AppState.favorites));
-  updateFavCount();
-}
-
-function updateFavCount() {
-  const favCount = document.getElementById('favCount');
-  if (favCount) {
-    favCount.textContent = AppState.favorites.length;
-  }
-}
-
-function toggleFavorite(itemId) {
-  const index = AppState.favorites.indexOf(itemId);
-  if (index === -1) {
-    AppState.favorites.push(itemId);
-    showToast('Добавлено в избранное', 'success');
-  } else {
-    AppState.favorites.splice(index, 1);
-    showToast('Удалено из избранного', 'info');
-  }
-  saveFavorites();
-}
-
-function isItemFavorited(itemId) {
-  return AppState.favorites.includes(itemId);
-}
-
 // ====================
-// API ФУНКЦИИ
+// API ФУНКЦИИ ДЛЯ ТОВАРОВ
 // ====================
 
 async function loadProducts() {
@@ -288,7 +503,7 @@ async function loadProducts() {
     
     // Преобразуем данные из API
     AppState.products = productsData.map(product => {
-      const isActive = product.is_active !== false;  // Исправлено на is_active
+      const isActive = product.is_active !== false;
       let thumbnail = 'https://via.placeholder.com/400x200?text=No+preview';
       if (product.image_url) {
         thumbnail = product.image_url;
@@ -304,7 +519,7 @@ async function loadProducts() {
         thumb: thumbnail,
         description: description,
         popularity: product.popularity || 0,
-        is_active: isActive,  // Исправлено на is_active
+        is_active: isActive,
         author: '',
         rating: 0,
         tags: [],
@@ -651,6 +866,9 @@ function renderProducts() {
          </div>`
       : '';
     
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Правильно проверяем избранное
+    const isFavorited = AppState.user ? isItemFavorited(product.id, 'product') : false;
+    
     return `
       <article class="card" data-id="${product.id}" data-type="product" data-category="${product.category}">
         <div class="media" style="position: relative;">
@@ -675,13 +893,14 @@ function renderProducts() {
           <button class="btn primary" data-action="add-to-cart" data-id="${product.id}" data-type="product" ${!product.is_active ? 'disabled style="opacity: 0.5;"' : ''}>
             ${product.is_active ? 'Купить' : 'Недоступно'}
           </button>
-          <button class="btn ghost ${isItemFavorited(product.id) ? 'active-chip' : ''}" 
+          <button class="btn ghost ${isFavorited ? 'active-chip' : ''}" 
                   data-action="toggle-favorite" 
                   data-id="${product.id}"
                   data-type="product"
-                  aria-pressed="${isItemFavorited(product.id)}"
-                  ${!product.is_active ? 'disabled style="opacity: 0.5;"' : ''}>
-            ${isItemFavorited(product.id) ? 'В избранном' : 'В избранное'}
+                  aria-pressed="${isFavorited}"
+                  ${!product.is_active ? 'disabled style="opacity: 0.5;"' : ''}
+                  ${!AppState.user ? 'title="Войдите чтобы добавить в избранное"' : ''}>
+            ${AppState.user ? (isFavorited ? 'В избранном' : 'В избранное') : 'В избранное'}
           </button>
         </div>
       </article>
@@ -710,7 +929,11 @@ function renderMarketListings() {
   const marketGrid = document.getElementById('marketGrid');
   if (!marketGrid) return;
   
-  marketGrid.innerHTML = AppState.marketListings.map(listing => `
+  marketGrid.innerHTML = AppState.marketListings.map(listing => {
+    // Правильно проверяем избранное для публикаций
+    const isFavorited = AppState.user ? isItemFavorited(listing.id, 'market') : false;
+    
+    return `
     <article class="card" data-id="${listing.id}" data-type="market">
       <div class="media">
         <img src="${listing.thumb}" 
@@ -731,22 +954,28 @@ function renderMarketListings() {
         <button class="btn primary" data-action="add-to-cart" data-id="${listing.id}" data-type="market">
           Купить
         </button>
-        <button class="btn ghost ${isItemFavorited(`market-${listing.id}`) ? 'active-chip' : ''}" 
+        <button class="btn ghost ${isFavorited ? 'active-chip' : ''}" 
                 data-action="toggle-favorite" 
                 data-id="${listing.id}"
-                data-type="market">
-          ${isItemFavorited(`market-${listing.id}`) ? 'В избранном' : 'В избранное'}
+                data-type="market"
+                aria-pressed="${isFavorited}"
+                ${!AppState.user ? 'title="Войдите чтобы добавить в избранное"' : ''}>
+          ${AppState.user ? (isFavorited ? 'В избранном' : 'В избранное') : 'В избранное'}
         </button>
       </div>
     </article>
-  `).join('');
+  `}).join('');
 }
 
 function renderAccountListings() {
   const accMarketGrid = document.getElementById('accMarketGrid');
   if (!accMarketGrid) return;
   
-  accMarketGrid.innerHTML = AppState.accountListings.map(listing => `
+  accMarketGrid.innerHTML = AppState.accountListings.map(listing => {
+    // Правильно проверяем избранное для авторских изданий
+    const isFavorited = AppState.user ? isItemFavorited(listing.id, 'account') : false;
+    
+    return `
     <article class="card" data-id="${listing.id}" data-type="account">
       <div class="media">
         <img src="${listing.thumb}" 
@@ -767,15 +996,17 @@ function renderAccountListings() {
         <button class="btn primary" data-action="add-to-cart" data-id="${listing.id}" data-type="account">
           Купить
         </button>
-        <button class="btn ghost ${isItemFavorited(`account-${listing.id}`) ? 'active-chip' : ''}" 
+        <button class="btn ghost ${isFavorited ? 'active-chip' : ''}" 
                 data-action="toggle-favorite" 
                 data-id="${listing.id}"
-                data-type="account">
-          ${isItemFavorited(`account-${listing.id}`) ? 'В избранном' : 'В избранное'}
+                data-type="account"
+                aria-pressed="${isFavorited}"
+                ${!AppState.user ? 'title="Войдите чтобы добавить в избранное"' : ''}>
+          ${AppState.user ? (isFavorited ? 'В избранном' : 'В избранное') : 'В избранное'}
         </button>
       </div>
     </article>
-  `).join('');
+  `}).join('');
 }
 
 function renderReviews() {
@@ -1108,7 +1339,7 @@ function setupEventListeners() {
   setupPaymentListeners();
 }
 
-function handleGlobalClick(e) {
+async function handleGlobalClick(e) {
   const button = e.target.closest('[data-action]');
   if (!button) return;
   
@@ -1125,12 +1356,15 @@ function handleGlobalClick(e) {
       break;
       
     case 'toggle-favorite':
-      const favoriteId = itemType === 'product' ? itemId : `${itemType}-${itemId}`;
-      toggleFavorite(favoriteId);
+      const isNowFavorited = await toggleFavorite(itemId, itemType);
       
-      button.setAttribute('aria-pressed', isItemFavorited(favoriteId));
-      button.classList.toggle('active-chip', isItemFavorited(favoriteId));
-      button.textContent = isItemFavorited(favoriteId) ? 'В избранном' : 'В избранное';
+      // Обновляем конкретную кнопку
+      button.setAttribute('aria-pressed', isNowFavorited);
+      button.classList.toggle('active-chip', isNowFavorited);
+      button.textContent = AppState.user ? (isNowFavorited ? 'В избранном' : 'В избранное') : 'В избранное';
+      
+      // Также обновляем все кнопки на случай, если есть дубли
+      updateFavoriteButtons();
       break;
       
     case 'remove-from-cart':
@@ -1416,10 +1650,10 @@ async function initApp() {
     // Загружаем состояние из localStorage
     loadStateFromStorage();
     
-    // Проверяем авторизацию
-    checkAuthStatus();
+    // Проверяем авторизацию и загружаем избранное
+    await checkAuthStatus();
     
-    // Загружаем данные с сервера
+    // Загружаем остальные данные с сервера
     await Promise.allSettled([
       loadProducts(),
       loadMarketListings(),
@@ -1432,12 +1666,14 @@ async function initApp() {
     renderAccountListings();
     renderReviews();
     updateCartCount();
-    updateFavCount();
     
     // Настраиваем обработчики событий
     setupEventListeners();
     
     console.log('Приложение успешно инициализировано');
+    console.log('Пользователь:', AppState.user ? 'авторизован' : 'не авторизован');
+    console.log('Избранных товаров:', AppState.favorites.length);
+    
     showToast('Данные успешно загружены', 'success');
     
   } catch (error) {
@@ -1450,7 +1686,6 @@ async function initApp() {
     renderAccountListings();
     renderReviews();
     updateCartCount();
-    updateFavCount();
     setupEventListeners();
   }
 }
@@ -1463,3 +1698,10 @@ document.addEventListener('DOMContentLoaded', initApp);
 
 // Экспортируем для глобального использования
 window.resetFilters = resetFilters;
+window.AppState = AppState;
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.clearCart = clearCart;
+window.toggleFavorite = toggleFavorite;
+window.isItemFavorited = isItemFavorited;
+window.loadUserFavorites = loadUserFavorites;

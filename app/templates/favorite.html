@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ru">
 <head>
@@ -6,6 +7,117 @@
   <title>Избранное — ЦифраМаркет</title>
   <link rel="icon" href="assets/key-icon.png" type="image/png">
   <link rel="stylesheet" href="/app/static/css/styles.css">
+  <style>
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 8px;
+    }
+    .tab {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .tab:hover {
+      background: rgba(255,255,255,0.03);
+    }
+    .tab.active {
+      background: rgba(var(--accent-1-rgb), 0.1);
+      color: var(--accent-1);
+      font-weight: 500;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+      grid-column: 1 / -1;
+    }
+    .empty-state h3 {
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .login-prompt {
+      background: rgba(var(--accent-1-rgb), 0.05);
+      border-radius: 10px;
+      padding: 40px 24px;
+      text-align: center;
+      margin: 40px 0;
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(var(--accent-1-rgb),0.3);
+      border-top-color: var(--accent-1);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+    .card .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      color: white;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      animation: slideIn 0.3s ease;
+    }
+    .notification.success {
+      background: linear-gradient(90deg, #28a745, #20c997);
+    }
+    .notification.error {
+      background: linear-gradient(90deg, #dc3545, #e83e8c);
+    }
+    .notification.info {
+      background: linear-gradient(90deg, #17a2b8, #00b4d8);
+    }
+    .favorite-date {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .item-unavailable {
+      opacity: 0.6;
+      position: relative;
+    }
+    .item-unavailable::before {
+      content: "Недоступно";
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(220, 53, 69, 0.9);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      z-index: 1;
+    }
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -19,85 +131,668 @@
       </div>
       <nav class="nav">
         <button onclick="location.href='/'" class="btn ghost">Главная</button>
+        <button id="loginBtn" class="btn primary" style="display:none;">Войти</button>
+        <button id="userProfileBtn" class="btn ghost" style="display:none; gap: 8px; align-items: center;">
+          <div id="userAvatarSmall" class="profile-avatar" style="width: 24px; height: 24px; font-size: 12px;"></div>
+          <span id="userNameSmall"></span>
+        </button>
       </nav>
     </div>
   </header>
 
   <main class="container">
     <section class="info">
-      <h2>Избранные товары</h2>
-      <div id="favGrid" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+      <h2>Мои избранные товары</h2>
+      
+      <div id="authCheck" style="display:none;">
+        <div class="login-prompt">
+          <h3>Войдите в аккаунт</h3>
+          <p>Чтобы просматривать избранные товары, нужно войти в свой аккаунт</p>
+          <button onclick="location.href='/auth.html'" class="btn primary" style="margin-top: 16px;">
+            Войти или зарегистрироваться
+          </button>
+          <div style="margin-top: 16px;">
+            <button onclick="location.href='/'" class="btn ghost">
+              Вернуться на главную
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div id="favoritesContent" style="display:none;">
+        <div class="tabs">
+          <button class="tab active" data-type="all">Все (<span id="countAll">0</span>)</button>
+          <button class="tab" data-type="products">Товары (<span id="countProducts">0</span>)</button>
+          <button class="tab" data-type="listings">Публикации (<span id="countListings">0</span>)</button>
+          <button class="tab" data-type="author">Авторские (<span id="countAuthor">0</span>)</button>
+        </div>
+        
+        <div id="loading" style="text-align: center; padding: 60px 20px;">
+          <div class="loading-spinner"></div>
+          <p style="margin-top:16px;color:var(--muted)">Загрузка избранного...</p>
+        </div>
+        
+        <div id="favGrid" class="product-grid" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
+      </div>
     </section>
   </main>
 
   <script>
-    // Attempt to read favorites and products from localStorage snapshot saved by main page (if any)
-    function formatPrice(p){ return (p===0)?'Free':p.toLocaleString('ru-RU')+' ₽'; }
-    const favs = JSON.parse(localStorage.getItem('kv_favs')||'[]');
-    const allProducts = (function(){
-      try{ return JSON.parse(localStorage.getItem('kv_products_snapshot')||'null') || null; }catch(e){return null;}
-    })();
-    // If there's no snapshot, try to build minimal view from fav ids using stored cart/listing fallbacks
-    function render(){
-      const wrap = document.getElementById('favGrid');
-      wrap.innerHTML = '';
-      if(favs.length === 0){ wrap.innerHTML = '<div style="color:var(--muted);padding:12px">Нет избранных товаров</div>'; return; }
-      // If we have a products snapshot, use it; otherwise create simple placeholders
-      favs.forEach(fid=>{
-        let p = null;
-        if(allProducts && Array.isArray(allProducts)) p = allProducts.find(x=>x.id===fid);
-        if(!p){
-          // try market or account lists stored (best-effort)
-          const markets = JSON.parse(localStorage.getItem('kv_market_listings')||'[]');
-          const accs = JSON.parse(localStorage.getItem('kv_account_listings')||'[]');
-          p = markets.find(x=>x.id===fid) || accs.find(x=>x.id===fid);
-        }
-        if(!p){
-          // fallback placeholder
-          p = { id: fid, title: fid, price: 0, thumb: 'https://via.placeholder.com/400x200?text=No+preview', tag: '' , desc: '' };
-        }
-        const card = document.createElement('article');
-        card.className = 'card';
-        // ensure thumb exists and provide onerror fallback so broken URLs don't remove image
-        const safeThumb = p.thumb || 'https://via.placeholder.com/400x200?text=No+preview';
-        card.innerHTML = `
-          <div class="media"><img src="${safeThumb}" alt="${p.title}" onerror="this.src='https://via.placeholder.com/400x200?text=No+preview'" style="width:100%;height:100%;object-fit:cover"></div>
-          <div>
-            <h3>${p.title}</h3>
-            <div class="meta"><span class="tag-pill">${p.tag||''}</span><span class="price">${formatPrice(p.price||0)}</span></div>
-            <p style="margin:8px 0 0;color:var(--muted);font-size:13px">${p.desc||''}</p>
-          </div>
-          <div class="actions">
-            <button class="btn primary" data-id="${p.id}" data-act="buy">Купить</button>
-            <button class="btn ghost" data-id="${p.id}" data-act="remove">Удалить</button>
-          </div>
-        `;
-        wrap.appendChild(card);
+    // Конфигурация
+    const API_BASE_URL = '';
+    const APP_STATE_KEY = 'kv_app_state';
+    
+    // Состояние приложения для этой страницы
+    const State = {
+      currentUser: null,
+      favorites: [],
+      products: [],
+      marketListings: [],
+      authorListings: [],
+      currentTab: 'all',
+      isLoading: false
+    };
+
+    // ====================
+    // УТИЛИТЫ
+    // ====================
+
+    function formatPrice(price) {
+      return price === 0 ? 'Бесплатно' : price.toLocaleString('ru-RU') + ' ₽';
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
       });
     }
 
-    document.addEventListener('click',(e)=>{
-      const b = e.target.closest('[data-act]');
-      if(!b) return;
-      const act = b.dataset.act, id = b.dataset.id;
-      if(act === 'remove'){
-        const arr = JSON.parse(localStorage.getItem('kv_favs')||'[]');
-        const idx = arr.indexOf(id);
-        if(idx !== -1){ arr.splice(idx,1); localStorage.setItem('kv_favs', JSON.stringify(arr)); location.reload(); }
-      }
-      if(act === 'buy'){
-        // attempt to add to persistent cart structure
-        const cart = JSON.parse(localStorage.getItem('kv_cart')||'{}');
-        // create minimal item
-        const item = { id, title: id, price: 0, qty: 1, thumb: 'https://via.placeholder.com/160x90' };
-        cart[id] = cart[id] || item;
-        cart[id].qty = (cart[id].qty||0)+1;
-        localStorage.setItem('kv_cart', JSON.stringify(cart));
-        alert('Добавлено в корзину');
-      }
-    });
+    function showNotification(message, type = 'info') {
+      // Удаляем старые уведомления
+      const oldNotifications = document.querySelectorAll('.notification');
+      oldNotifications.forEach(n => n.remove());
+      
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
+    }
 
-    render();
+    function getItemType(favorite) {
+      if (favorite.products_id) return 'product';
+      if (favorite.listing_id) return 'market';
+      if (favorite.author_listing_id) return 'account';
+      return null;
+    }
+
+    function getItemId(favorite) {
+      if (favorite.products_id) return favorite.products_id;
+      if (favorite.listing_id) return favorite.listing_id;
+      if (favorite.author_listing_id) return favorite.author_listing_id;
+      return null;
+    }
+
+    // ====================
+    // АВТОРИЗАЦИЯ И ПРОФИЛЬ
+    // ====================
+
+    function checkAuth() {
+      try {
+        const userStr = localStorage.getItem('kv_user');
+        const authCheck = document.getElementById('authCheck');
+        const favoritesContent = document.getElementById('favoritesContent');
+        const loginBtn = document.getElementById('loginBtn');
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        
+        if (userStr) {
+          State.currentUser = JSON.parse(userStr);
+          authCheck.style.display = 'none';
+          favoritesContent.style.display = 'block';
+          loginBtn.style.display = 'none';
+          userProfileBtn.style.display = 'flex';
+          
+          // Обновляем профиль
+          updateUserProfile();
+          
+          // Загружаем избранное
+          loadFavorites();
+        } else {
+          State.currentUser = null;
+          authCheck.style.display = 'block';
+          favoritesContent.style.display = 'none';
+          loginBtn.style.display = 'block';
+          userProfileBtn.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Ошибка проверки авторизации:', error);
+        showNotification('Ошибка проверки авторизации', 'error');
+      }
+    }
+
+    function updateUserProfile() {
+      const userAvatar = document.getElementById('userAvatarSmall');
+      const userName = document.getElementById('userNameSmall');
+      
+      if (userAvatar && State.currentUser) {
+        if (State.currentUser.avatar) {
+          userAvatar.style.backgroundImage = `url('${State.currentUser.avatar}')`;
+          userAvatar.textContent = '';
+        } else {
+          userAvatar.style.backgroundImage = 'none';
+          userAvatar.textContent = State.currentUser.name.charAt(0).toUpperCase();
+        }
+      }
+      
+      if (userName && State.currentUser) {
+        userName.textContent = State.currentUser.name;
+      }
+    }
+
+    function logoutUser() {
+      if (confirm('Выйти из аккаунта?')) {
+        localStorage.removeItem('kv_user');
+        State.currentUser = null;
+        State.favorites = [];
+        checkAuth();
+        showNotification('Вы вышли из аккаунта', 'info');
+      }
+    }
+
+    // ====================
+    // ЗАГРУЗКА ДАННЫХ
+    // ====================
+
+    async function loadFavorites() {
+      try {
+        if (!State.currentUser) return;
+        
+        State.isLoading = true;
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('favGrid').innerHTML = '';
+        
+        console.log('Загрузка избранного для пользователя ID:', State.currentUser.id);
+        
+        // Загружаем избранное с сервера
+        const response = await fetch(`${API_BASE_URL}/favorites/user/${State.currentUser.id}?skip=0&limit=100`);
+        
+        if (response.ok) {
+          const favoritesData = await response.json();
+          console.log('Получено избранное:', favoritesData.length, 'шт.');
+          
+          State.favorites = favoritesData;
+          
+          // Параллельно загружаем данные товаров
+          await Promise.all([
+            loadProductsData(),
+            loadMarketListingsData(),
+            loadAuthorListingsData()
+          ]);
+          
+          renderFavorites();
+          updateTabCounts();
+          
+        } else if (response.status === 404) {
+          // У пользователя нет избранного
+          State.favorites = [];
+          renderFavorites();
+          updateTabCounts();
+          
+        } else {
+          throw new Error(`Ошибка сервера: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки избранного:', error);
+        showNotification('Не удалось загрузить избранное', 'error');
+        renderEmptyState('Ошибка загрузки', 'Попробуйте обновить страницу');
+      } finally {
+        State.isLoading = false;
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    async function loadProductsData() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/products/?skip=0&limit=100&active_only=true`);
+        if (response.ok) {
+          State.products = await response.json();
+          console.log('Загружены товары:', State.products.length, 'шт.');
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки товаров:', error);
+        State.products = [];
+      }
+    }
+
+    async function loadMarketListingsData() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/listings/?skip=0&limit=100&active_only=true`);
+        if (response.ok) {
+          State.marketListings = await response.json();
+          console.log('Загружены публикации:', State.marketListings.length, 'шт.');
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки публикаций:', error);
+        State.marketListings = [];
+      }
+    }
+
+    async function loadAuthorListingsData() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/author-listings/?skip=0&limit=100&active_only=true`);
+        if (response.ok) {
+          State.authorListings = await response.json();
+          console.log('Загружены авторские издания:', State.authorListings.length, 'шт.');
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки авторских изданий:', error);
+        State.authorListings = [];
+      }
+    }
+
+    // ====================
+    // ПОИСК И ПОЛУЧЕНИЕ ДАННЫХ ТОВАРОВ
+    // ====================
+
+    function getProductById(productId) {
+      return State.products.find(p => p.id == productId);
+    }
+
+    function getMarketListingById(listingId) {
+      return State.marketListings.find(l => l.id == listingId);
+    }
+
+    function getAuthorListingById(authorListingId) {
+      return State.authorListings.find(a => a.id == authorListingId);
+    }
+
+    function getItemByFavorite(favorite) {
+      const itemType = getItemType(favorite);
+      const itemId = getItemId(favorite);
+      
+      if (!itemType || !itemId) return null;
+      
+      switch (itemType) {
+        case 'product':
+          return getProductById(itemId);
+        case 'market':
+          return getMarketListingById(itemId);
+        case 'account':
+          return getAuthorListingById(itemId);
+        default:
+          return null;
+      }
+    }
+
+    function getItemTitle(favorite) {
+      const item = getItemByFavorite(favorite);
+      return item ? item.title : 'Товар не найден';
+    }
+
+    function getItemPrice(favorite) {
+      const item = getItemByFavorite(favorite);
+      return item ? (item.price || 0) : 0;
+    }
+
+    function getItemThumbnail(favorite) {
+      const item = getItemByFavorite(favorite);
+      if (!item) return 'https://via.placeholder.com/400x200?text=Товар+не+найден';
+      
+      return item.image_url || item.thumb || 'https://via.placeholder.com/400x200?text=Избранное';
+    }
+
+    function getItemCategory(favorite) {
+      const item = getItemByFavorite(favorite);
+      if (!item) return '';
+      
+      return item.category || item.game_topic || item.topic || 'Без категории';
+    }
+
+    function getItemDescription(favorite) {
+      const item = getItemByFavorite(favorite);
+      if (!item) return 'Товар больше недоступен';
+      
+      const desc = item.description || '';
+      return desc.length > 120 ? desc.substring(0, 120) + '...' : desc;
+    }
+
+    function isItemAvailable(favorite) {
+      const item = getItemByFavorite(favorite);
+      if (!item) return false;
+      
+      // Проверяем активность товара
+      if (item.is_active !== undefined) return item.is_active !== false;
+      if (item.status !== undefined) return item.status === 'active';
+      
+      return true;
+    }
+
+    // ====================
+    // РЕНДЕРИНГ
+    // ====================
+
+    function renderFavorites() {
+      const container = document.getElementById('favGrid');
+      if (!container) return;
+      
+      // Фильтруем по текущей вкладке
+      const filteredFavorites = State.favorites.filter(favorite => {
+        if (State.currentTab === 'all') return true;
+        
+        const itemType = getItemType(favorite);
+        if (State.currentTab === 'products' && itemType === 'product') return true;
+        if (State.currentTab === 'listings' && itemType === 'market') return true;
+        if (State.currentTab === 'author' && itemType === 'account') return true;
+        
+        return false;
+      });
+      
+      if (filteredFavorites.length === 0) {
+        renderEmptyState(getEmptyStateTitle(), getEmptyStateMessage());
+        return;
+      }
+      
+      container.innerHTML = filteredFavorites.map(favorite => {
+        const itemType = getItemType(favorite);
+        const itemId = getItemId(favorite);
+        const isAvailable = isItemAvailable(favorite);
+        const itemClass = isAvailable ? '' : 'item-unavailable';
+        
+        return `
+          <article class="card ${itemClass}" data-favorite-id="${favorite.id}" data-item-type="${itemType}" data-item-id="${itemId}">
+            <div class="media">
+              <img src="${getItemThumbnail(favorite)}" 
+                   alt="${getItemTitle(favorite)}"
+                   onerror="this.src='https://via.placeholder.com/400x200?text=Избранное'"
+                   style="width:100%;height:100%;object-fit:cover">
+            </div>
+            <div>
+              <h3 style="margin:0 0 8px 0;font-size:16px;line-height:1.3">${getItemTitle(favorite)}</h3>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <span class="tag-pill" style="font-size:12px">${getItemCategory(favorite)}</span>
+                <span class="price" style="font-size:18px;font-weight:700">${formatPrice(getItemPrice(favorite))}</span>
+              </div>
+              <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.4">
+                ${getItemDescription(favorite)}
+              </p>
+              <div class="favorite-date">
+                Добавлено: ${formatDate(favorite.added_at)}
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" onclick="addToCartFromFavorite('${itemType}', ${itemId})" ${!isAvailable ? 'disabled style="opacity:0.5"' : ''}>
+                ${isAvailable ? 'Купить' : 'Недоступно'}
+              </button>
+              <button class="btn ghost" onclick="removeFavorite(${favorite.id})">
+                Удалить
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderEmptyState(title, message) {
+      const container = document.getElementById('favGrid');
+      if (!container) return;
+      
+      container.innerHTML = `
+        <div class="empty-state">
+          <h3>${title}</h3>
+          <p>${message}</p>
+          ${State.currentTab === 'all' ? `
+            <div style="margin-top:20px;display:flex;gap:12px;justify-content:center">
+              <button onclick="location.href='/'" class="btn primary">
+                Найти товары
+              </button>
+              <button onclick="loadFavorites()" class="btn ghost">
+                Обновить
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function getEmptyStateTitle() {
+      switch (State.currentTab) {
+        case 'products': return 'Нет избранных товаров';
+        case 'listings': return 'Нет избранных публикаций';
+        case 'author': return 'Нет избранных авторских изданий';
+        default: return 'Нет избранных товаров';
+      }
+    }
+
+    function getEmptyStateMessage() {
+      switch (State.currentTab) {
+        case 'products': return 'Добавляйте товары в избранное на главной странице';
+        case 'listings': return 'Добавляйте публикации в избранное в разделе "Маркет публикаций"';
+        case 'author': return 'Добавляйте авторские издания в избранное в разделе "Авторские издания"';
+        default: return 'Начните добавлять товары в избранное на главной странице';
+      }
+    }
+
+    function updateTabCounts() {
+      const counts = {
+        all: State.favorites.length,
+        products: State.favorites.filter(f => getItemType(f) === 'product').length,
+        listings: State.favorites.filter(f => getItemType(f) === 'market').length,
+        author: State.favorites.filter(f => getItemType(f) === 'account').length
+      };
+      
+      document.getElementById('countAll').textContent = counts.all;
+      document.getElementById('countProducts').textContent = counts.products;
+      document.getElementById('countListings').textContent = counts.listings;
+      document.getElementById('countAuthor').textContent = counts.author;
+    }
+
+    // ====================
+    // ДЕЙСТВИЯ С ТОВАРАМИ
+    // ====================
+
+    async function removeFavorite(favoriteId) {
+      try {
+        if (!confirm('Удалить из избранного?')) return;
+        
+        const response = await fetch(`${API_BASE_URL}/favorites/${favoriteId}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          // Удаляем из локального состояния
+          State.favorites = State.favorites.filter(f => f.id !== favoriteId);
+          
+          // Перерисовываем
+          renderFavorites();
+          updateTabCounts();
+          
+          showNotification('Удалено из избранного', 'success');
+          
+          // Обновляем счетчик на главной странице (если она открыта)
+          updateMainPageFavCount();
+          
+        } else if (response.status === 404) {
+          showNotification('Избранное уже удалено', 'info');
+          // Все равно обновляем локальное состояние
+          State.favorites = State.favorites.filter(f => f.id !== favoriteId);
+          renderFavorites();
+          updateTabCounts();
+          
+        } else {
+          throw new Error(`Ошибка: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Ошибка удаления из избранного:', error);
+        showNotification('Не удалось удалить из избранного', 'error');
+      }
+    }
+
+    function addToCartFromFavorite(itemType, itemId) {
+      try {
+        let item = null;
+        
+        switch (itemType) {
+          case 'product':
+            item = getProductById(itemId);
+            break;
+          case 'market':
+            item = getMarketListingById(itemId);
+            break;
+          case 'account':
+            item = getAuthorListingById(itemId);
+            break;
+        }
+        
+        if (!item) {
+          showNotification('Товар не найден', 'error');
+          return;
+        }
+        
+        // Добавляем в корзину в localStorage
+        const cart = JSON.parse(localStorage.getItem('kv_cart') || '{}');
+        const cartId = `${itemType}-${itemId}`;
+        
+        cart[cartId] = {
+          id: cartId,
+          title: item.title || 'Без названия',
+          price: item.price || 0,
+          qty: (cart[cartId]?.qty || 0) + 1,
+          thumb: item.image_url || item.thumb || 'https://via.placeholder.com/400x200',
+          category: item.category || itemType
+        };
+        
+        localStorage.setItem('kv_cart', JSON.stringify(cart));
+        
+        showNotification('Добавлено в корзину', 'success');
+        
+        // Обновляем счетчик корзины на главной странице
+        updateMainPageCartCount();
+        
+      } catch (error) {
+        console.error('Ошибка добавления в корзину:', error);
+        showNotification('Не удалось добавить в корзину', 'error');
+      }
+    }
+
+    function updateMainPageFavCount() {
+      // Отправляем сообщение на главную страницу, если она открыта в другом табе
+      if (window.opener) {
+        try {
+          window.opener.postMessage({
+            type: 'FAVORITES_UPDATED',
+            count: State.favorites.length
+          }, '*');
+        } catch (e) {
+          console.warn('Не удалось обновить счетчик на главной странице:', e);
+        }
+      }
+      
+      // Сохраняем в localStorage для синхронизации
+      localStorage.setItem('kv_favs_count', State.favorites.length.toString());
+    }
+
+    function updateMainPageCartCount() {
+      const cart = JSON.parse(localStorage.getItem('kv_cart') || '{}');
+      const count = Object.keys(cart).length;
+      
+      if (window.opener) {
+        try {
+          window.opener.postMessage({
+            type: 'CART_UPDATED',
+            count: count
+          }, '*');
+        } catch (e) {
+          console.warn('Не удалось обновить счетчик корзины на главной странице:', e);
+        }
+      }
+      
+      localStorage.setItem('kv_cart_count', count.toString());
+    }
+
+    // ====================
+    // ИНИЦИАЛИЗАЦИЯ
+    // ====================
+
+    function initEventListeners() {
+      // Обработчики вкладок
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Обновляем активную вкладку
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          State.currentTab = tab.dataset.type;
+          
+          // Перерисовываем
+          renderFavorites();
+        });
+      });
+      
+      // Кнопка входа
+      document.getElementById('loginBtn').addEventListener('click', () => {
+        location.href = '/auth.html';
+      });
+      
+      // Кнопка профиля (выход)
+      document.getElementById('userProfileBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        logoutUser();
+      });
+      
+      // Слушаем сообщения от главной страницы
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'FAVORITES_UPDATED') {
+          // Если главная страница сообщила об обновлении избранного
+          loadFavorites();
+        }
+      });
+      
+      // Обработка обновления страницы
+      window.addEventListener('beforeunload', () => {
+        // Сохраняем состояние
+        localStorage.setItem('kv_favs_state', JSON.stringify({
+          favorites: State.favorites,
+          lastUpdated: new Date().toISOString()
+        }));
+      });
+    }
+
+    // ====================
+    // ЗАПУСК ПРИЛОЖЕНИЯ
+    // ====================
+
+    async function initApp() {
+      try {
+        console.log('Инициализация страницы избранного...');
+        
+        // Проверяем авторизацию
+        checkAuth();
+        
+        // Настраиваем обработчики событий
+        initEventListeners();
+        
+        console.log('Страница избранного инициализирована');
+        
+      } catch (error) {
+        console.error('Ошибка инициализации страницы избранного:', error);
+        showNotification('Ошибка загрузки страницы', 'error');
+      }
+    }
+
+    // Запускаем приложение при загрузке страницы
+    document.addEventListener('DOMContentLoaded', initApp);
+
+    // Экспортируем функции для глобального использования
+    window.removeFavorite = removeFavorite;
+    window.addToCartFromFavorite = addToCartFromFavorite;
+    window.loadFavorites = loadFavorites;
+
   </script>
 </body>
 </html>
