@@ -18,13 +18,30 @@
         </div>
       </div>
       <nav class="nav">
+        <div id="authArea" style="display:flex;gap:8px;align-items:center">
+          <div id="userProfile" style="display:none;">
+            <button id="profileBtn" class="profile-btn" onclick="location.href='/account.html'">
+              <div class="profile-avatar" id="userAvatar"></div>
+              <span id="userName"></span>
+            </button>
+          </div>
+          <div id="authButtons" style="display:flex;gap:8px;align-items:center">
+            <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'">Войти</button>
+            <button id="registerBtn" class="btn primary" onclick="location.href='/auth.html#register'">Регистрация</button>
+          </div>
+        </div>
         <button onclick="location.href='/'" class="btn ghost">Главная</button>
       </nav>
     </div>
   </header>
 
   <main class="container" style="padding-bottom:40px">
-    <section class="info" style="padding:8px;display:flex;flex-direction:column;height:60vh">
+    <div id="authRequired" style="display:none; text-align:center; padding:40px;">
+      <h3>Для доступа к чату необходимо авторизоваться</h3>
+      <button onclick="location.href='/auth.html'" class="btn primary" style="margin-top:20px;">Войти в аккаунт</button>
+    </div>
+    
+    <section id="chatSection" class="info" style="padding:8px;display:flex;flex-direction:column;height:60vh; display:none;">
       <div id="chatWindow" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:8px"></div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <input id="msg" placeholder="Напишите сообщение..." style="flex:1;padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
@@ -34,44 +51,224 @@
   </main>
 
   <script>
-    function loadChat(){ try{ return JSON.parse(localStorage.getItem('kv_chat')||'[{"id":"sys","author":"bot","text":"Здравствуйте! Чем можем помочь?"}]'); }catch(e){return [{"id":"sys","author":"bot","text":"Здравствуйте! Чем можем помочь?"}]} }
-    function saveChat(c){ localStorage.setItem('kv_chat', JSON.stringify(c)); }
-    function render(){
-      const w = document.getElementById('chatWindow');
-      w.innerHTML = '';
-      const msgs = loadChat();
-      msgs.forEach(m=>{
-        const div = document.createElement('div');
-        div.style.maxWidth='80%';
-        div.style.padding='8px 10px';
-        div.style.borderRadius='10px';
-        div.style.fontSize='13px';
-        if(m.author==='user'){ div.style.marginLeft='auto'; div.style.background='linear-gradient(90deg,#2b5cff,#7b61ff)'; div.style.color='#fff'; }
-        else { div.style.background='rgba(255,255,255,0.03)'; div.style.color='var(--text)'; }
-        div.textContent = m.text;
-        w.appendChild(div);
-      });
-      w.scrollTop = w.scrollHeight;
+    // Проверка авторизации
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('kv_user') || 'null');
+      const authRequired = document.getElementById('authRequired');
+      const chatSection = document.getElementById('chatSection');
+      const authArea = document.getElementById('authArea');
+      const userProfile = document.getElementById('userProfile');
+      const authButtons = document.getElementById('authButtons');
+      
+      if (user && user.id) {
+        // Пользователь авторизован
+        if (authRequired) authRequired.style.display = 'none';
+        if (chatSection) chatSection.style.display = 'flex';
+        if (userProfile) userProfile.style.display = 'flex';
+        if (authButtons) authButtons.style.display = 'none';
+        
+        // Обновляем профиль
+        updateUserProfile(user);
+        
+        // Загружаем историю чата
+        loadChatHistory(user.id);
+      } else {
+        // Пользователь не авторизован
+        if (authRequired) authRequired.style.display = 'block';
+        if (chatSection) chatSection.style.display = 'none';
+        if (userProfile) userProfile.style.display = 'none';
+        if (authButtons) authButtons.style.display = 'flex';
+      }
     }
-    document.getElementById('send').addEventListener('click', ()=>{
-      const txt = document.getElementById('msg').value.trim();
-      if(!txt) return;
-      const chat = loadChat();
-      chat.push({ id: 'u'+Date.now(), author:'user', text: txt });
-      saveChat(chat);
-      document.getElementById('msg').value='';
-      render();
-      // simulate reply
-      setTimeout(()=>{
-        const ch = loadChat();
-        ch.push({ id: 'b'+Date.now(), author:'bot', text: 'Спасибо! Мы обработаем запрос и ответим в ближайшее время.'});
-        saveChat(ch);
-        render();
-      }, 800);
+    
+    function updateUserProfile(user) {
+      const userAvatar = document.getElementById('userAvatar');
+      const userName = document.getElementById('userName');
+      
+      if (userAvatar) {
+        if (user.avatar) {
+          userAvatar.style.backgroundImage = `url('${user.avatar}')`;
+          userAvatar.textContent = '';
+        } else {
+          userAvatar.style.backgroundImage = 'none';
+          userAvatar.textContent = user.name.charAt(0).toUpperCase();
+        }
+      }
+      
+      if (userName) {
+        userName.textContent = user.name;
+      }
+    }
+    
+    // API функции для чата
+    async function loadChatHistory(userId) {
+      try {
+        const response = await fetch(`/chat/user/${userId}/conversation`);
+        if (response.ok) {
+          const messages = await response.json();
+          renderChat(messages);
+        } else {
+          console.warn('Не удалось загрузить историю чата');
+          renderChat([]);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки истории чата:', error);
+        renderChat([]);
+      }
+    }
+    
+    async function sendMessage(userId, text) {
+      try {
+        const messageData = {
+          user_id: userId,
+          massage_text: text,
+          massage_type: 'user_message',
+          is_from_user: true
+        };
+        
+        const response = await fetch('/chat/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messageData)
+        });
+        
+        if (response.ok) {
+          const newMessage = await response.json();
+          renderMessage(newMessage);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('Ошибка отправки сообщения:', error);
+        return false;
+      }
+    }
+    
+    function renderChat(messages) {
+      const chatWindow = document.getElementById('chatWindow');
+      if (!chatWindow) return;
+      
+      chatWindow.innerHTML = '';
+      
+      // Добавляем приветственное сообщение если чат пустой
+      if (messages.length === 0) {
+        const welcomeDiv = document.createElement('div');
+        welcomeDiv.style.cssText = `
+          max-width: 80%;
+          padding: 12px;
+          border-radius: 10px;
+          font-size: 13px;
+          background: rgba(255,255,255,0.03);
+          color: var(--text);
+          margin-bottom: 10px;
+        `;
+        welcomeDiv.textContent = 'Здравствуйте! Это чат поддержки ЦифраМаркет. Чем можем помочь?';
+        chatWindow.appendChild(welcomeDiv);
+      } else {
+        messages.forEach(message => renderMessage(message));
+      }
+      
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+    
+    function renderMessage(message) {
+      const chatWindow = document.getElementById('chatWindow');
+      if (!chatWindow) return;
+      
+      const div = document.createElement('div');
+      div.style.maxWidth = '80%';
+      div.style.padding = '8px 10px';
+      div.style.borderRadius = '10px';
+      div.style.fontSize = '13px';
+      div.style.marginBottom = '8px';
+      div.style.wordBreak = 'break-word';
+      
+      if (message.is_from_user) {
+        div.style.marginLeft = 'auto';
+        div.style.background = 'linear-gradient(90deg, #2b5cff, #7b61ff)';
+        div.style.color = '#fff';
+      } else {
+        div.style.background = 'rgba(255,255,255,0.03)';
+        div.style.color = 'var(--text)';
+      }
+      
+      // Форматируем время
+      const time = new Date(message.sent_at).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      div.innerHTML = `
+        <div>${message.massage_text}</div>
+        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px; text-align: ${message.is_from_user ? 'right' : 'left'}">
+          ${time}
+        </div>
+      `;
+      
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+    
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAuth();
+      
+      // Обработчик отправки сообщения
+      document.getElementById('send').addEventListener('click', async () => {
+        const user = JSON.parse(localStorage.getItem('kv_user') || 'null');
+        if (!user) {
+          alert('Для отправки сообщения необходимо авторизоваться');
+          return;
+        }
+        
+        const msgInput = document.getElementById('msg');
+        const text = msgInput.value.trim();
+        if (!text) return;
+        
+        // Добавляем сообщение в интерфейс сразу
+        const tempMessage = {
+          user_id: user.id,
+          massage_text: text,
+          massage_type: 'user_message',
+          is_from_user: true,
+          sent_at: new Date().toISOString()
+        };
+        
+        renderMessage(tempMessage);
+        msgInput.value = '';
+        
+        // Отправляем на сервер
+        const success = await sendMessage(user.id, text);
+        
+        if (success) {
+          // Симуляция ответа поддержки (в реальном приложении это должен быть WebSocket или polling)
+          setTimeout(() => {
+            const botMessage = {
+              user_id: user.id,
+              massage_text: 'Спасибо за сообщение! Мы ответим вам в ближайшее время.',
+              massage_type: 'bot_message',
+              is_from_user: false,
+              sent_at: new Date().toISOString()
+            };
+            renderMessage(botMessage);
+          }, 1000);
+        }
+      });
+      
+      // Отправка по Enter
+      document.getElementById('msg').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('send').click();
+        }
+      });
     });
-
-    render();
+    
+    // Обновляем состояние при изменении localStorage
+    window.addEventListener('storage', () => {
+      checkAuth();
+    });
   </script>
 </body>
 </html>
-

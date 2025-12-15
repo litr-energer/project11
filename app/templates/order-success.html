@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Заказ оформлен — ЦифраМаркет</title>
+  <link rel="stylesheet" href="/app/static/css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="nano-banana_20251205_181151_16c0fe00.png" alt="logo" class="logo" onerror="this.style.display='none'">
+        <div>
+          <h1>ЦифраМаркет</h1>
+          <p class="tag">Заказ оформлен</p>
+        </div>
+      </div>
+      <button onclick="location.href='/'" class="btn ghost">На главную</button>
+    </div>
+  </header>
+
+  <main class="container" style="text-align:center; padding:60px 20px;">
+    <div style="font-size:72px; margin-bottom:20px;">🎉</div>
+    <h2 style="margin-bottom:15px">Заказ успешно оформлен!</h2>
+    <p style="color:var(--muted); margin-bottom:30px; max-width:500px; margin-left:auto; margin-right:auto">
+      Ссылки для скачивания товаров отправлены на ваш email. 
+      Вы также можете найти их в истории заказов в личном кабинете.
+    </p>
+    
+    <div style="background:rgba(255,255,255,0.02); border-radius:12px; padding:20px; max-width:400px; margin:30px auto">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span>Номер заказа:</span>
+        <span id="orderId" style="font-weight:bold">...</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span>Дата оформления:</span>
+        <span id="orderDate">...</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:18px">Итого:</span>
+        <span id="orderTotal" style="font-size:18px;font-weight:bold;color:var(--accent-1)">...</span>
+      </div>
+    </div>
+    
+    <div style="margin-top:40px">
+      <button onclick="location.href='/'" class="btn primary" style="padding:12px 30px; margin-right:10px">
+        Вернуться к покупкам
+      </button>
+      <button onclick="location.href='/account.html'" class="btn ghost" style="padding:12px 30px">
+        Личный кабинет
+      </button>
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Получаем параметры из URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderId = urlParams.get('order') || 'ord-' + Date.now();
+      
+      // Получаем заказ из localStorage
+      const orders = JSON.parse(localStorage.getItem('kv_orders') || '[]');
+      const lastOrder = orders[0] || { id: orderId, created_at: new Date().toISOString(), total: 0 };
+      
+      // Обновляем информацию на странице
+      document.getElementById('orderId').textContent = lastOrder.id;
+      document.getElementById('orderDate').textContent = new Date(lastOrder.created_at).toLocaleString('ru-RU');
+      document.getElementById('orderTotal').textContent = lastOrder.total.toLocaleString('ru-RU') + ' ₽';
+    });
+  </script>
+</body>
+</html>

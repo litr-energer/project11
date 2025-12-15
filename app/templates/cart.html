@@ -18,296 +18,657 @@
         </div>
       </div>
       <nav class="nav">
+        <div id="authArea" style="display:flex;gap:8px;align-items:center">
+          <div id="userProfile" style="display:none;">
+            <button id="profileBtn" class="profile-btn" onclick="location.href='/account.html'">
+              <div class="profile-avatar" id="userAvatar"></div>
+              <span id="userName"></span>
+            </button>
+          </div>
+          <div id="authButtons" style="display:flex;gap:8px;align-items:center">
+            <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'">Войти</button>
+            <button id="registerBtn" class="btn primary" onclick="location.href='/auth.html#register'">Регистрация</button>
+          </div>
+        </div>
         <button onclick="location.href='/'" class="btn ghost">Главная</button>
       </nav>
     </div>
   </header>
 
-  <main class="container">
-    <section class="info" style="padding:12px">
-      <h2>Содержимое корзины</h2>
-      <div id="cartList" style="margin-top:12px;display:grid;gap:12px"></div>
-
-      <!-- Checkout controls wrapper (added to prevent script errors and to host checkout form) -->
-      <div id="checkoutSection" style="display:none;flex-direction:row;align-items:center;justify-content:space-between;margin-top:12px">
-        <div>Итого: <strong id="totalPrice">0 ₽</strong></div>
-        <div>
-          <button id="clearBtn" class="btn ghost">Очистить</button>
-          <button id="payBtn" class="btn primary">Оформить заказ</button>
-        </div>
+  <main class="container" style="padding-bottom:40px">
+    <!-- Сообщение для неавторизованных пользователей -->
+    <div id="authRequired" style="display:none; text-align:center; padding:40px;">
+      <h3>Для доступа к корзине необходимо авторизоваться</h3>
+      <p style="color:var(--muted); margin:10px 0 20px;">
+        Ваша корзина будет сохранена и синхронизирована после входа в аккаунт
+      </p>
+      <button onclick="location.href='/auth.html?redirect=/cart.html'" class="btn primary" style="margin-top:20px;">
+        Войти в аккаунт
+      </button>
+      <button onclick="location.href='/'" class="btn ghost" style="margin-top:10px;">
+        Вернуться к покупкам
+      </button>
+    </div>
+    
+    <!-- Основной контент корзины -->
+    <section id="cartSection" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <h2 style="margin:0">Ваша корзина</h2>
+        <button id="continueShopping" class="btn ghost">Продолжить покупки</button>
       </div>
-
-      <!-- Inline checkout form (hidden until requested) -->
-      <div id="checkoutFormWrap" style="display:none;margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(90deg, rgba(43,92,255,0.02), rgba(123,97,255,0.02));border:1px solid rgba(255,255,255,0.02)">
-        <h3 style="margin:0 0 8px">Данные покупателя и оплата</h3>
-        <div style="display:grid;gap:8px">
-          <input id="checkoutName" placeholder="ФИО получателя" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-          <input id="checkoutEmail" placeholder="Email для получения ссылок" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-          <div id="paymentMethodInputGroup">
-            <label style="display:block;font-size:13px;color:var(--muted);margin:0 0 6px">Основной способ оплаты:</label>
-            <!-- Chips for main methods: Bank Card, PayPal, Qiwi, COD -->
-            <div id="mainPaymentMethods" class="payment-chips">
-              <button class="payment-chip selected" data-method="card">Банковская карта</button>
-              <button class="payment-chip" data-method="paypal">PayPal</button>
-              <button class="payment-chip" data-method="qiwi">Qiwi</button>
-              <button class="payment-chip" data-method="cod">Оплата при получении</button>
-            </div>
-
-            <!-- Detailed options for 'card' payment, visible by default or when card is selected -->
-            <div id="cardSpecificPayments" style="margin-top:10px;display:block;">
-              <label style="display:block;font-size:13px;color:var(--muted);margin:0 0 6px">Выберите систему:</label>
-              <div id="cardPaymentMethods" class="payment-chips">
-                <button class="payment-chip selected" data-method="card-visa">Visa/Mastercard</button>
-                <button class="payment-chip" data-method="card-apple">Apple Pay</button>
-                <button class="payment-chip" data-method="card-google">Google Pay</button>
-                <button class="payment-chip" data-method="card-yoomoney">ЮMoney</button>
-              </div>
+      
+      <!-- Контейнер для товаров -->
+      <div id="cartItemsContainer" style="margin-bottom:30px">
+        <!-- Товары будут загружены через JS -->
+      </div>
+      
+      <!-- Итого и оформление заказа -->
+      <div id="cartSummary" style="background:rgba(255,255,255,0.02);border-radius:12px;padding:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:15px">
+          <span style="color:var(--muted)">Стоимость товаров:</span>
+          <span id="subtotal" style="font-weight:bold">0 ₽</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:20px">
+          <span style="color:var(--muted)">Итого к оплате:</span>
+          <span id="total" style="font-size:24px;font-weight:bold;color:var(--accent-1)">0 ₽</span>
+        </div>
+        
+        <!-- Форма оформления заказа -->
+        <div id="checkoutForm" style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.05)">
+          <h3 style="margin-bottom:15px">Оформление заказа</h3>
+          
+          <div style="display:grid;gap:12px;margin-bottom:20px">
+            <div>
+              <label style="display:block;margin-bottom:5px;font-size:14px">ФИО получателя *</label>
+              <input id="checkoutName" placeholder="Иванов Иван Иванович" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text)">
             </div>
             
-            <input id="paymentMethodHidden" type="hidden" value="card-visa">
+            <div>
+              <label style="display:block;margin-bottom:5px;font-size:14px">Email для получения ссылок *</label>
+              <input id="checkoutEmail" type="email" placeholder="example@email.com" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text)">
+            </div>
+            
+            <div>
+              <label style="display:block;margin-bottom:5px;font-size:14px">Способ оплаты *</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:5px">
+                <button class="payment-method" data-method="card" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">Карта</button>
+                <button class="payment-method" data-method="paypal" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">PayPal</button>
+                <button class="payment-method" data-method="yoomoney" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">ЮMoney</button>
+                <button class="payment-method" data-method="qiwi" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">Qiwi</button>
+              </div>
+              <input type="hidden" id="selectedPaymentMethod" value="card">
+            </div>
           </div>
-          <input id="paymentData" placeholder="Данные оплаты (Номер карты/Аккаунт)" style="padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">
-
-          <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button id="cancelCheckoutBtn" class="btn ghost">Отмена</button>
-            <button id="confirmPayBtn" class="btn primary">Оплатить</button>
+          
+          <div style="display:flex;gap:12px;justify-content:flex-end">
+            <button id="clearCartBtn" class="btn ghost" style="padding:10px 20px">Очистить корзину</button>
+            <button id="checkoutBtn" class="btn primary" style="padding:12px 30px;font-size:16px">Оформить заказ</button>
           </div>
         </div>
       </div>
-
     </section>
+    
+    <!-- Пустая корзина -->
+    <div id="emptyCart" style="display:none; text-align:center; padding:60px 20px;">
+      <div style="font-size:48px; margin-bottom:20px; color:var(--muted)">🛒</div>
+      <h3 style="margin-bottom:10px">Ваша корзина пуста</h3>
+      <p style="color:var(--muted); margin-bottom:30px">
+        Добавьте товары из каталога, чтобы они появились здесь
+      </p>
+      <button onclick="location.href='/'" class="btn primary" style="padding:12px 30px;">
+        Перейти к товарам
+      </button>
+    </div>
   </main>
 
-  <script>
-    function formatPrice(p){ return (p===0)?'Free':p.toLocaleString('ru-RU')+' ₽'; }
-    function loadCart(){ try{ return JSON.parse(localStorage.getItem('kv_cart')||'{}'); }catch(e){return {}} }
-    function saveCart(c){ localStorage.setItem('kv_cart', JSON.stringify(c)); }
+  <!-- Уведомления -->
+  <div id="toast" class="toast" style="display:none"></div>
 
-    function render(){
-      const cart = loadCart();
-      const wrap = document.getElementById('cartList');
-      wrap.innerHTML = '';
-      let total = 0;
-      const items = Object.values(cart);
-      if(items.length === 0){
-        wrap.innerHTML = '<div style="color:var(--muted)">Корзина пуста</div>';
-        document.getElementById('checkoutSection').style.display = 'none';
-        document.getElementById('checkoutFormWrap').style.display = 'none';
-        document.getElementById('totalPrice').textContent = formatPrice(0);
+  <script>
+    // Базовый URL API (должен совпадать с app.js)
+    const API_BASE_URL = '';
+    
+    // Состояние корзины
+    let cartState = {
+      items: {},
+      user: null,
+      subtotal: 0,
+      total: 0
+    };
+    
+    // ====================
+    // УТИЛИТЫ
+    // ====================
+    
+    function formatPrice(price) {
+      return price === 0 ? 'Бесплатно' : price.toLocaleString('ru-RU') + ' ₽';
+    }
+    
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      
+      toast.textContent = message;
+      toast.className = 'toast';
+      
+      if (type === 'success') {
+        toast.style.background = 'linear-gradient(90deg, #28a745, #20c997)';
+      } else if (type === 'error') {
+        toast.style.background = 'linear-gradient(90deg, #dc3545, #e83e8c)';
+      } else if (type === 'info') {
+        toast.style.background = 'linear-gradient(90deg, #17a2b8, #00b4d8)';
+      } else {
+        toast.style.background = 'linear-gradient(90deg, var(--accent-1), var(--accent-2))';
+      }
+      
+      toast.style.display = 'block';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+    
+    // ====================
+    // ПРОВЕРКА АВТОРИЗАЦИИ
+    // ====================
+    
+    function checkAuth() {
+      const user = JSON.parse(localStorage.getItem('kv_user') || 'null');
+      const authRequired = document.getElementById('authRequired');
+      const cartSection = document.getElementById('cartSection');
+      const emptyCart = document.getElementById('emptyCart');
+      const authArea = document.getElementById('authArea');
+      const userProfile = document.getElementById('userProfile');
+      const authButtons = document.getElementById('authButtons');
+      
+      if (user && user.id) {
+        // Пользователь авторизован
+        cartState.user = user;
+        
+        if (authRequired) authRequired.style.display = 'none';
+        if (cartSection) cartSection.style.display = 'block';
+        if (userProfile) userProfile.style.display = 'flex';
+        if (authButtons) authButtons.style.display = 'none';
+        
+        // Обновляем профиль
+        updateUserProfile(user);
+        
+        // Загружаем корзину с сервера
+        loadUserCart();
+      } else {
+        // Пользователь не авторизован
+        cartState.user = null;
+        
+        if (authRequired) authRequired.style.display = 'block';
+        if (cartSection) cartSection.style.display = 'none';
+        if (emptyCart) emptyCart.style.display = 'none';
+        if (userProfile) userProfile.style.display = 'none';
+        if (authButtons) authButtons.style.display = 'flex';
+        
+        // Показываем локальную корзину
+        loadLocalCart();
+      }
+    }
+    
+    function updateUserProfile(user) {
+      const userAvatar = document.getElementById('userAvatar');
+      const userName = document.getElementById('userName');
+      
+      if (userAvatar) {
+        if (user.avatar) {
+          userAvatar.style.backgroundImage = `url('${user.avatar}')`;
+          userAvatar.textContent = '';
+        } else {
+          userAvatar.style.backgroundImage = 'none';
+          userAvatar.textContent = user.name.charAt(0).toUpperCase();
+        }
+      }
+      
+      if (userName) {
+        userName.textContent = user.name;
+      }
+    }
+    
+    // ====================
+    // API ФУНКЦИИ ДЛЯ КОРЗИНЫ
+    // ====================
+    
+    async function loadUserCart() {
+      try {
+        const user = cartState.user;
+        if (!user) return;
+        
+        console.log('Загрузка корзины пользователя:', user.id);
+        
+        const response = await fetch(`${API_BASE_URL}/carts/my`, {
+          headers: {
+            'X-User-Id': user.id.toString()
+          }
+        });
+        
+        if (response.ok) {
+          const cartData = await response.json();
+          console.log('Загружена корзина с сервера:', cartData);
+          
+          // Загружаем элементы корзины
+          const itemsResponse = await fetch(`${API_BASE_URL}/carts/my/items`, {
+            headers: {
+              'X-User-Id': user.id.toString()
+            }
+          });
+          
+          if (itemsResponse.ok) {
+            const items = await itemsResponse.json();
+            
+            // Преобразуем в локальный формат
+            cartState.items = {};
+            items.forEach(item => {
+              const cartItemId = `cart-${item.id}`;
+              cartState.items[cartItemId] = {
+                id: cartItemId,
+                api_id: item.id,
+                title: `Товар #${item.id}`, // В реальном приложении нужно загружать детали товара
+                price: item.price,
+                qty: item.quantity,
+                thumb: 'https://via.placeholder.com/120x90?text=Товар',
+                item_type: item.item_type,
+                item_id: item.product_id || item.listing_id || item.author_listing_id
+              };
+            });
+            
+            updateCartDisplay();
+            console.log('Корзина загружена:', Object.keys(cartState.items).length, 'шт.');
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки корзины:', error);
+        // Показываем локальную корзину как fallback
+        loadLocalCart();
+      }
+    }
+    
+    async function updateCartItemQuantityAPI(cartItemId, newQty) {
+      try {
+        const user = cartState.user;
+        if (!user) return { success: false };
+        
+        const cartItem = cartState.items[cartItemId];
+        if (!cartItem || !cartItem.api_id) {
+          console.warn('API ID не найден для:', cartItemId);
+          return { success: false };
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/carts/my/items/${cartItem.api_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': user.id.toString()
+          },
+          body: JSON.stringify({ quantity: newQty })
+        });
+        
+        if (response.ok) {
+          return { success: true };
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Ошибка обновления количества:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    async function removeItemFromCartAPI(cartItemId) {
+      try {
+        const user = cartState.user;
+        if (!user) return { success: false };
+        
+        const cartItem = cartState.items[cartItemId];
+        if (!cartItem || !cartItem.api_id) {
+          console.warn('API ID не найден для:', cartItemId);
+          return { success: false };
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/carts/my/items/${cartItem.api_id}`, {
+          method: 'DELETE',
+          headers: {
+            'X-User-Id': user.id.toString()
+          }
+        });
+        
+        if (response.ok) {
+          return { success: true };
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Ошибка удаления из корзины:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    async function clearCartAPI() {
+      try {
+        const user = cartState.user;
+        if (!user) return { success: false };
+        
+        const response = await fetch(`${API_BASE_URL}/carts/my/clear`, {
+          method: 'DELETE',
+          headers: {
+            'X-User-Id': user.id.toString()
+          }
+        });
+        
+        if (response.ok) {
+          return { success: true };
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Ошибка очистки корзины:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    // ====================
+    // ЛОКАЛЬНЫЕ ФУНКЦИИ КОРЗИНЫ
+    // ====================
+    
+    function loadLocalCart() {
+      try {
+        const cart = JSON.parse(localStorage.getItem('kv_cart') || '{}');
+        cartState.items = cart;
+        updateCartDisplay();
+        console.log('Локальная корзина загружена:', Object.keys(cartState.items).length, 'шт.');
+      } catch (error) {
+        console.error('Ошибка загрузки локальной корзины:', error);
+        cartState.items = {};
+        updateCartDisplay();
+      }
+    }
+    
+    function saveLocalCart() {
+      localStorage.setItem('kv_cart', JSON.stringify(cartState.items));
+    }
+    
+    function removeFromCart(cartItemId) {
+      if (cartState.items[cartItemId]) {
+        // Если пользователь авторизован, удаляем из API
+        if (cartState.user) {
+          removeItemFromCartAPI(cartItemId);
+        }
+        
+        delete cartState.items[cartItemId];
+        
+        if (!cartState.user) {
+          saveLocalCart();
+        }
+        
+        updateCartDisplay();
+        showToast('Товар удален из корзины', 'info');
+      }
+    }
+    
+    function updateCartQuantity(cartItemId, newQty) {
+      if (cartState.items[cartItemId]) {
+        if (newQty <= 0) {
+          removeFromCart(cartItemId);
+        } else {
+          // Если пользователь авторизован, обновляем в API
+          if (cartState.user) {
+            updateCartItemQuantityAPI(cartItemId, newQty);
+          }
+          
+          cartState.items[cartItemId].qty = newQty;
+          
+          if (!cartState.user) {
+            saveLocalCart();
+          }
+          
+          updateCartDisplay();
+        }
+      }
+    }
+    
+    function clearCart() {
+      if (confirm('Вы уверены, что хотите очистить корзину?')) {
+        // Если пользователь авторизован, очищаем в API
+        if (cartState.user) {
+          clearCartAPI();
+        }
+        
+        cartState.items = {};
+        
+        if (!cartState.user) {
+          saveLocalCart();
+        }
+        
+        updateCartDisplay();
+        showToast('Корзина очищена', 'info');
+      }
+    }
+    
+    function getCartTotal() {
+      return Object.values(cartState.items).reduce((total, item) => {
+        return total + (item.price * item.qty);
+      }, 0);
+    }
+    
+    // ====================
+    // ОТОБРАЖЕНИЕ КОРЗИНЫ
+    // ====================
+    
+    function updateCartDisplay() {
+      const items = Object.values(cartState.items);
+      const cartItemsContainer = document.getElementById('cartItemsContainer');
+      const emptyCart = document.getElementById('emptyCart');
+      const cartSection = document.getElementById('cartSection');
+      const subtotalEl = document.getElementById('subtotal');
+      const totalEl = document.getElementById('total');
+      
+      if (items.length === 0) {
+        // Пустая корзина
+        if (cartItemsContainer) cartItemsContainer.innerHTML = '';
+        if (emptyCart) emptyCart.style.display = 'block';
+        if (cartSection) cartSection.style.display = 'none';
+        
+        // Обновляем итоги
+        if (subtotalEl) subtotalEl.textContent = '0 ₽';
+        if (totalEl) totalEl.textContent = '0 ₽';
+        
         return;
       }
-      items.forEach(it=>{
-        total += (it.price||0)*(it.qty||1);
-        const node = document.createElement('div');
-        node.className = 'card';
-        node.innerHTML = `
-          <div style="display:flex;gap:12px;align-items:center">
-            <div style="width:84px;height:56px;overflow:hidden;border-radius:6px"><img src="${it.thumb||'https://via.placeholder.com/160x90'}" style="width:100%;height:100%;object-fit:cover"></div>
-            <div style="flex:1">
-              <strong>${it.title}</strong>
-              <div style="color:var(--muted);font-size:13px;margin-top:6px">${formatPrice(it.price)} × ${it.qty}</div>
+      
+      // Показываем корзину
+      if (emptyCart) emptyCart.style.display = 'none';
+      if (cartSection) cartSection.style.display = 'block';
+      
+      // Обновляем товары
+      if (cartItemsContainer) {
+        cartItemsContainer.innerHTML = items.map(item => `
+          <div class="cart-item" style="display:flex;gap:15px;padding:15px;background:rgba(255,255,255,0.02);border-radius:10px;margin-bottom:10px">
+            <div style="width:80px;height:80px;border-radius:6px;overflow:hidden;flex-shrink:0">
+              <img src="${item.thumb}" alt="${item.title}" style="width:100%;height:100%;object-fit:cover">
             </div>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              <button class="btn" data-id="${it.id}" data-act="inc">+</button>
-              <button class="btn" data-id="${it.id}" data-act="dec">−</button>
-              <button class="btn ghost" data-id="${it.id}" data-act="rm">Удалить</button>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <h4 style="margin:0;font-size:16px">${item.title}</h4>
+                <span style="font-weight:bold;font-size:16px">${formatPrice(item.price)}</span>
+              </div>
+              <p style="color:var(--muted);font-size:13px;margin:0 0 10px 0">Электронное издание</p>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <button class="qty-btn" data-action="decrease" data-id="${item.id}" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer">−</button>
+                  <span style="font-weight:bold;min-width:30px;text-align:center">${item.qty} шт.</span>
+                  <button class="qty-btn" data-action="increase" data-id="${item.id}" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer">+</button>
+                </div>
+                <button class="remove-btn" data-action="remove" data-id="${item.id}" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Удалить</button>
+              </div>
             </div>
           </div>
-        `;
-        wrap.appendChild(node);
-      });
-      document.getElementById('totalPrice').textContent = formatPrice(total);
-      // show checkout controls when there are items
-      document.getElementById('checkoutSection').style.display = 'flex';
-    }
-
-    // State for payment selection
-    let currentPaymentMethod = 'card-visa';
-
-    function updatePaymentChips(containerId, selectedMethod){
-      const container = document.getElementById(containerId);
-      if(!container) return;
-      Array.from(container.querySelectorAll('.payment-chip')).forEach(chip => {
-        const method = chip.dataset.method;
-        const isSelected = method === selectedMethod || (method === 'card' && selectedMethod.startsWith('card-'));
-        
-        if (isSelected) {
-          chip.classList.add('selected');
-          chip.setAttribute('aria-pressed', 'true');
-        } else {
-          chip.classList.remove('selected');
-          chip.setAttribute('aria-pressed', 'false');
-        }
-      });
-    }
-
-    function handlePaymentSelection(method, isMainSelection=true){
-      currentPaymentMethod = method;
-      document.getElementById('paymentMethodHidden').value = method;
-
-      const mainMethodsContainer = document.getElementById('mainPaymentMethods');
-      const cardSpecificContainer = document.getElementById('cardSpecificPayments');
-      const paymentDataInput = document.getElementById('paymentData');
-
-      // Update main methods visual state
-      updatePaymentChips('mainPaymentMethods', method);
-
-      // Handle visibility and placeholder for paymentData
-      if (method === 'cod') {
-        paymentDataInput.style.display = 'none';
-        paymentDataInput.placeholder = 'Данные оплаты не требуются';
-      } else if (method.startsWith('card')) {
-        paymentDataInput.style.display = 'block';
-        paymentDataInput.placeholder = 'Номер карты';
-        if(cardSpecificContainer) cardSpecificContainer.style.display = 'block';
-        if(isMainSelection) {
-            // If main selection is 'card', ensure a default card sub-method is selected
-            currentPaymentMethod = document.getElementById('cardPaymentMethods').querySelector('.selected')?.dataset.method || 'card-visa';
-            document.getElementById('paymentMethodHidden').value = currentPaymentMethod;
-        }
-      } else if (method === 'paypal' || method === 'qiwi') {
-        paymentDataInput.style.display = 'block';
-        paymentDataInput.placeholder = `Аккаунт ${method.toUpperCase()}`;
-        if(cardSpecificContainer) cardSpecificContainer.style.display = 'none';
-      } else {
-        paymentDataInput.style.display = 'block';
-        paymentDataInput.placeholder = 'Данные оплаты (Номер карты/Аккаунт)';
-        if(cardSpecificContainer) cardSpecificContainer.style.display = 'none';
+        `).join('');
       }
       
-      // Update card specific selection state if visible
-      if (cardSpecificContainer && cardSpecificContainer.style.display === 'block') {
-          updatePaymentChips('cardPaymentMethods', currentPaymentMethod);
-      }
-    }
-
-    // quantity & remove handlers
-    document.addEventListener('click', (e)=>{
-      const t = e.target.closest('[data-act]');
-      if(!t) return;
-      const act = t.dataset.act, id = t.dataset.id;
-      const cart = loadCart();
-      if(act === 'inc'){ if(cart[id]) cart[id].qty = (cart[id].qty||1)+1; }
-      if(act === 'dec'){ if(cart[id]) cart[id].qty = (cart[id].qty||1)-1; if(cart[id] && cart[id].qty<=0) delete cart[id]; }
-      if(act === 'rm'){ if(cart[id]) delete cart[id]; }
-      saveCart(cart);
-      render();
-    });
-
-    // Payment chip handlers
-    document.addEventListener('click', (e)=>{
-      const chip = e.target.closest('#mainPaymentMethods .payment-chip');
-      if(chip){
-        const method = chip.dataset.method;
-        handlePaymentSelection(method, true); // True for main selection
-        return;
-      }
-      const subChip = e.target.closest('#cardPaymentMethods .payment-chip');
-      if(subChip){
-        const method = subChip.dataset.method;
-        handlePaymentSelection(method, false); // False for sub selection
-        return;
-      }
-    });
-
-
-    document.getElementById('clearBtn').addEventListener('click', ()=>{
-      localStorage.removeItem('kv_cart');
-      render();
-    });
-
-    // Show inline checkout form (or when visiting #checkout)
-    function showCheckoutForm(){
-      if(Object.keys(loadCart()).length === 0){
-        alert('Корзина пуста');
-        return;
-      }
-      document.getElementById('checkoutFormWrap').style.display = 'block';
-      handlePaymentSelection(currentPaymentMethod, true); // Initialize payment UI state when opening form
-      // scroll to form
-      document.getElementById('checkoutFormWrap').scrollIntoView({behavior:'smooth', block:'center'});
-    }
-
-    // Simple validation and simulated payment
-    function doPayment(){
-      const name = document.getElementById('checkoutName').value.trim();
-      const email = document.getElementById('checkoutEmail').value.trim();
-      // Use the value set by chip handlers
-      const method = document.getElementById('paymentMethodHidden').value;
-      const pdata = document.getElementById('paymentData').value.trim();
-
-      if(!name || !email){ alert('Введите имя и email'); return; }
+      // Обновляем итоги
+      const subtotal = getCartTotal();
+      const total = subtotal; // Может быть добавлена доставка и налоги
       
-      // Validation depends on the specific method chosen
-      if(method !== 'cod' && pdata.length < 4){ 
-        alert('Введите корректные данные оплаты'); 
-        return; 
-      }
-
-      // simulate processing
-      const payBtn = document.getElementById('confirmPayBtn');
-      payBtn.disabled = true;
-      payBtn.textContent = 'Оплата...';
-      setTimeout(()=>{
-        // create an order and persist it
-        try{
-          const cart = loadCart();
-          const items = Object.values(cart).map(it=>({ id: it.id, title: it.title, price: it.price, qty: it.qty||1, thumb: it.thumb }));
-          const orders = JSON.parse(localStorage.getItem('kv_orders')||'[]');
-          const userObj = JSON.parse(localStorage.getItem('kv_user')||'null');
-          const order = {
-            id: 'ord-' + Date.now(),
-            user: userObj ? userObj.name : (name || 'guest'),
-            name,
-            email,
-            method,
-            items,
-            total: items.reduce((s,i)=>s + (i.price||0)*(i.qty||1),0),
-            created_at: new Date().toISOString()
-          };
-          orders.unshift(order);
-          localStorage.setItem('kv_orders', JSON.stringify(orders));
-        }catch(e){ console.warn('save order failed', e); }
-
-        alert('Заказ оплачен. Ссылки отправлены на ' + email);
-        // clear cart and hide form
-        localStorage.removeItem('kv_cart');
-        render();
-        document.getElementById('checkoutFormWrap').style.display = 'none';
-        // reset form fields
-        document.getElementById('checkoutName').value = '';
-        document.getElementById('checkoutEmail').value = '';
-        document.getElementById('paymentData').value = '';
-        payBtn.disabled = false;
-        payBtn.textContent = 'Оплатить';
-      }, 1000 + Math.random()*900);
+      if (subtotalEl) subtotalEl.textContent = formatPrice(subtotal);
+      if (totalEl) totalEl.textContent = formatPrice(total);
+      
+      // Добавляем обработчики событий
+      setupCartEventListeners();
     }
-
-    // wire up pay button to open form
-    document.getElementById('payBtn').addEventListener('click', showCheckoutForm);
-
-    // wire confirm and cancel inside checkout
-    document.getElementById('confirmPayBtn').addEventListener('click', doPayment);
-    document.getElementById('cancelCheckoutBtn').addEventListener('click', ()=>{
-      document.getElementById('checkoutFormWrap').style.display = 'none';
-    });
-
-    // If page loaded with #checkout, show form
-    window.addEventListener('load', ()=>{
-      render();
-      if(location.hash === '#checkout') setTimeout(()=>{
-        showCheckoutForm();
-        handlePaymentSelection(currentPaymentMethod, true); // Initialize payment UI state
-      }, 250);
-      else {
-        // Initialize payment UI state for inputs if form is hidden
-        handlePaymentSelection(currentPaymentMethod, true);
+    
+    // ====================
+    // ОБРАБОТЧИКИ СОБЫТИЙ
+    // ====================
+    
+    function setupCartEventListeners() {
+      // Кнопки изменения количества
+      document.querySelectorAll('.qty-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const action = e.target.dataset.action;
+          const itemId = e.target.dataset.id;
+          const item = cartState.items[itemId];
+          
+          if (!item) return;
+          
+          if (action === 'increase') {
+            updateCartQuantity(itemId, item.qty + 1);
+          } else if (action === 'decrease') {
+            updateCartQuantity(itemId, item.qty - 1);
+          }
+        });
+      });
+      
+      // Кнопки удаления
+      document.querySelectorAll('.remove-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const itemId = e.target.dataset.id;
+          removeFromCart(itemId);
+        });
+      });
+    }
+    
+    function setupPageEventListeners() {
+      // Кнопка "Продолжить покупки"
+      const continueShopping = document.getElementById('continueShopping');
+      if (continueShopping) {
+        continueShopping.addEventListener('click', () => {
+          window.location.href = '/';
+        });
+      }
+      
+      // Кнопка "Очистить корзину"
+      const clearCartBtn = document.getElementById('clearCartBtn');
+      if (clearCartBtn) {
+        clearCartBtn.addEventListener('click', clearCart);
+      }
+      
+      // Выбор способа оплаты
+      document.querySelectorAll('.payment-method').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const method = e.target.dataset.method;
+          
+          // Сбрасываем стиль у всех кнопок
+          document.querySelectorAll('.payment-method').forEach(btn => {
+            btn.style.background = 'rgba(255,255,255,0.05)';
+            btn.style.border = '1px solid rgba(255,255,255,0.1)';
+          });
+          
+          // Выделяем выбранную кнопку
+          e.target.style.background = 'rgba(43, 92, 255, 0.2)';
+          e.target.style.border = '1px solid rgba(43, 92, 255, 0.5)';
+          
+          // Сохраняем выбор
+          document.getElementById('selectedPaymentMethod').value = method;
+        });
+      });
+      
+      // Кнопка "Оформить заказ"
+      const checkoutBtn = document.getElementById('checkoutBtn');
+      if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', () => {
+          const name = document.getElementById('checkoutName').value.trim();
+          const email = document.getElementById('checkoutEmail').value.trim();
+          const paymentMethod = document.getElementById('selectedPaymentMethod').value;
+          
+          if (!name || !email) {
+            showToast('Заполните все обязательные поля', 'error');
+            return;
+          }
+          
+          if (Object.keys(cartState.items).length === 0) {
+            showToast('Корзина пуста', 'error');
+            return;
+          }
+          
+          // Симуляция оформления заказа
+          checkoutBtn.disabled = true;
+          checkoutBtn.textContent = 'Обработка...';
+          
+          setTimeout(() => {
+            // Сохраняем заказ
+            const order = {
+              id: 'ord-' + Date.now(),
+              user: cartState.user ? cartState.user.name : name,
+              name,
+              email,
+              method: paymentMethod,
+              items: Object.values(cartState.items),
+              total: getCartTotal(),
+              created_at: new Date().toISOString()
+            };
+            
+            const orders = JSON.parse(localStorage.getItem('kv_orders') || '[]');
+            orders.unshift(order);
+            localStorage.setItem('kv_orders', JSON.stringify(orders));
+            
+            // Очищаем корзину
+            clearCart();
+            
+            // Показываем сообщение об успехе
+            showToast(`Заказ оформлен! Ссылки отправлены на ${email}`, 'success');
+            
+            // Сбрасываем кнопку
+            checkoutBtn.disabled = false;
+            checkoutBtn.textContent = 'Оформить заказ';
+            
+            // Очищаем форму
+            document.getElementById('checkoutName').value = '';
+            document.getElementById('checkoutEmail').value = '';
+            
+            // Перенаправляем на страницу успеха
+            setTimeout(() => {
+              window.location.href = '/order-success.html?order=' + order.id;
+            }, 2000);
+          }, 1500);
+        });
+      }
+    }
+    
+    // ====================
+    // ИНИЦИАЛИЗАЦИЯ
+    // ====================
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAuth();
+      setupPageEventListeners();
+      
+      // Выбираем первый способ оплаты по умолчанию
+      const firstPaymentMethod = document.querySelector('.payment-method');
+      if (firstPaymentMethod) {
+        firstPaymentMethod.click();
       }
     });
-
-    // Also react to hashchange
-    window.addEventListener('hashchange', ()=>{
-      if(location.hash === '#checkout') showCheckoutForm();
+    
+    // Обновляем состояние при изменении localStorage
+    window.addEventListener('storage', () => {
+      checkAuth();
     });
   </script>
 </body>

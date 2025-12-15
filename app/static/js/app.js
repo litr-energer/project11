@@ -1,4 +1,3 @@
-
 // /app/static/js/app.js (ПОЛНЫЙ КОД С ИЗБРАННЫМ ПО АККАУНТУ)
 
 // Базовый URL API
@@ -285,6 +284,329 @@ async function toggleFavorite(itemId, itemType) {
 }
 
 // ====================
+// API ФУНКЦИИ ДЛЯ КОРЗИНЫ
+// ====================
+
+async function loadUserCart() {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      console.log('Пользователь не авторизован, используем локальную корзину');
+      AppState.cart = AppState.cart || {};
+      saveCart();
+      updateCartCount();
+      return null;
+    }
+    
+    console.log('Загрузка корзины пользователя:', user.id);
+    
+    // Просто возвращаем существующую корзину без запросов к API
+    // (для отладки, потом вернете запросы)
+    console.log('Текущая корзина:', AppState.cart);
+    updateCartCount();
+    return AppState.cart;
+    
+  } catch (error) {
+    console.error('Ошибка загрузки корзины:', error);
+    return null;
+  }
+}
+
+async function fetchItemDetails(itemType, itemId) {
+  try {
+    let url = '';
+    
+    if (itemType === 'product') {
+      url = `/products/${itemId}`;
+    } else if (itemType === 'listing') {
+      url = `${API_BASE_URL}/listings/${itemId}`;
+    } else if (itemType === 'author_listing') {
+      url = `${API_BASE_URL}/author-listings/${itemId}`;
+    } else {
+      return null;
+    }
+    
+    console.log(`Загружаем детали товара: ${url}`);
+    const response = await fetch(url);
+    
+    if (response.ok) {
+      const itemData = await response.json();
+      console.log('Загружен товар с сервера:', itemData);
+      
+      // Преобразуем данные в единый формат
+      return {
+        id: itemData.id?.toString() || itemId,
+        title: itemData.title || 'Без названия',
+        description: itemData.description || '',
+        price: itemData.price || 0,
+        thumb: itemData.image_url || itemData.thumbnail || itemData.thumb || 'https://via.placeholder.com/160x90',
+        category: itemData.category || itemData.game_topic || itemData.topic || 'Товар',
+        // Сохраняем оригинальные данные
+        raw_data: itemData
+      };
+    }
+  } catch (error) {
+    console.error(`Ошибка загрузки товара ${itemId}:`, error);
+  }
+  
+  return null;
+}
+
+async function addItemToCartAPI(item, itemType) {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      // Для неавторизованных пользователей - локальная корзина
+      const itemId = `local-${item.id}-${Date.now()}`;
+      AppState.cart[itemId] = {
+        id: itemId,
+        title: item.title,
+        price: item.price || 0,
+        qty: 1,
+        thumb: item.thumb || 'https://via.placeholder.com/160x90',
+        category: item.category || item.game_topic || item.topic || 'Товар',
+        item_type: itemType,
+        item_id: item.id,
+        description: item.description || '',
+        local: true
+      };
+      saveCart();
+      updateCartCount();
+      showToast(`"${item.title}" добавлен в корзину`, 'success');
+      return { success: true, cartItem: AppState.cart[itemId] };
+    }
+    
+    console.log('Добавление товара в корзину:', item);
+    
+    // Подготавливаем данные для API
+    const requestData = {
+      item_type: itemType,
+      quantity: 1,
+      price: item.price || 0
+    };
+    
+    // Добавляем правильное поле ID
+    const id = parseInt(item.id);
+    if (itemType === 'product') {
+      requestData.product_id = id;
+    } else if (itemType === 'market') {
+      requestData.listing_id = id;
+    } else if (itemType === 'account') {
+      requestData.author_listing_id = id;
+    }
+    
+    console.log('Отправка в API:', requestData);
+    
+    const response = await fetch(`${API_BASE_URL}/carts/my/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': user.id.toString()
+      },
+      body: JSON.stringify(requestData)
+    });
+    
+    if (response.ok) {
+      const cartItem = await response.json();
+      console.log('Ответ от сервера:', cartItem);
+      
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем ВСЕ данные из карточки товара
+      const cartItemId = `cart-${cartItem.id}`;
+      AppState.cart[cartItemId] = {
+        id: cartItemId,
+        title: item.title, // Берем из карточки товара
+        price: item.price || 0,
+        qty: cartItem.quantity,
+        thumb: item.thumb || item.image_url || 'https://via.placeholder.com/160x90',
+        category: item.category || item.game_topic || item.topic || 'Товар',
+        description: item.description || '',
+        api_id: cartItem.id,
+        item_type: itemType,
+        item_id: item.id,
+        // Сохраняем все исходные данные
+        source_data: item
+      };
+      
+      saveCart();
+      updateCartCount();
+      
+      showToast(`"${item.title}" добавлен в корзину`, 'success');
+      console.log('Товар сохранен в локальной корзине:', AppState.cart[cartItemId]);
+      return { success: true, cartItem };
+    } else {
+      const errorText = await response.text();
+      console.error('Ошибка API:', errorText);
+      
+      // Fallback: добавляем в локальную корзину
+      const fallbackId = `fallback-${item.id}-${Date.now()}`;
+      AppState.cart[fallbackId] = {
+        id: fallbackId,
+        title: item.title,
+        price: item.price || 0,
+        qty: 1,
+        thumb: item.thumb || 'https://via.placeholder.com/160x90',
+        category: item.category || item.game_topic || item.topic || 'Товар',
+        description: item.description || '',
+        item_type: itemType,
+        item_id: item.id,
+        local: true,
+        source_data: item
+      };
+      
+      saveCart();
+      updateCartCount();
+      showToast(`"${item.title}" добавлен в локальную корзину`, 'success');
+      
+      return { success: false, error: errorText };
+    }
+  } catch (error) {
+    console.error('Ошибка добавления в корзину:', error);
+    
+    // Добавляем в локальную корзину при любой ошибке
+    const errorId = `error-${item.id}-${Date.now()}`;
+    AppState.cart[errorId] = {
+      id: errorId,
+      title: item.title,
+      price: item.price || 0,
+      qty: 1,
+      thumb: item.thumb || 'https://via.placeholder.com/160x90',
+      category: item.category || item.game_topic || item.topic || 'Товар',
+      description: item.description || '',
+      item_type: itemType,
+      item_id: item.id,
+      local: true,
+      source_data: item
+    };
+    
+    saveCart();
+    updateCartCount();
+    showToast(`"${item.title}" добавлен в корзину (оффлайн)`, 'warning');
+    
+    return { success: false, error: error.message };
+  }
+}
+
+async function updateCartItemQuantityAPI(cartItemId, newQty) {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      // Для неавторизованных пользователей обновляем локально
+      updateCartQuantity(cartItemId, newQty);
+      return { success: true };
+    }
+    
+    const cartItem = AppState.cart[cartItemId];
+    if (!cartItem || !cartItem.api_id) {
+      console.warn('API ID не найден для:', cartItemId);
+      return { success: false, error: 'Cart item not found' };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/carts/my/items/${cartItem.api_id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': user.id.toString()
+      },
+      body: JSON.stringify({ quantity: newQty })
+    });
+    
+    if (response.ok) {
+      const updatedItem = await response.json();
+      
+      // Обновляем локальное состояние
+      if (newQty <= 0) {
+        delete AppState.cart[cartItemId];
+      } else {
+        cartItem.qty = newQty;
+      }
+      
+      saveCart();
+      updateCartCount();
+      
+      return { success: true, updatedItem };
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Ошибка обновления количества:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function removeItemFromCartAPI(cartItemId) {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      // Для неавторизованных пользователей удаляем локально
+      removeFromCart(cartItemId);
+      return { success: true };
+    }
+    
+    const cartItem = AppState.cart[cartItemId];
+    if (!cartItem || !cartItem.api_id) {
+      console.warn('API ID не найден для:', cartItemId);
+      return { success: false, error: 'Cart item not found' };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/carts/my/items/${cartItem.api_id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-User-Id': user.id.toString()
+      }
+    });
+    
+    if (response.ok) {
+      // Удаляем из локального состояния
+      delete AppState.cart[cartItemId];
+      saveCart();
+      updateCartCount();
+      
+      return { success: true };
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Ошибка удаления из корзины:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function clearCartAPI() {
+  try {
+    const user = AppState.user;
+    if (!user) {
+      // Для неавторизованных пользователей очищаем локально
+      clearCart();
+      return { success: true };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/carts/my/clear`, {
+      method: 'DELETE',
+      headers: {
+        'X-User-Id': user.id.toString()
+      }
+    });
+    
+    if (response.ok) {
+      // Очищаем локальное состояние
+      AppState.cart = {};
+      saveCart();
+      updateCartCount();
+      
+      return { success: true };
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || `Ошибка: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Ошибка очистки корзины:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ====================
 // ЗАГРУЗКА СОСТОЯНИЯ И АВТОРИЗАЦИЯ
 // ====================
 
@@ -334,6 +656,9 @@ async function checkAuthStatus() {
     // Загружаем избранное пользователя
     await loadUserFavorites();
     
+    // Загружаем корзину пользователя
+    await loadUserCart();
+    
     // Обновляем кнопки избранного на странице
     updateFavoriteButtons();
     
@@ -351,6 +676,7 @@ async function checkAuthStatus() {
   }
   
   updateFavCount();
+  updateCartCount();
 }
 
 function updateUserProfileUI(user) {
@@ -395,7 +721,7 @@ function logoutUser() {
 }
 
 // ====================
-// КОРЗИНА
+// КОРЗИНА (ЛОКАЛЬНЫЕ ФУНКЦИИ)
 // ====================
 
 function saveCart() {
@@ -427,28 +753,28 @@ function addToCart(item) {
     };
   }
   
-  saveCart();
+  // Если пользователь авторизован, сохраняем в API
+  if (AppState.user) {
+    const itemType = item.item_type || 'product'; // Определяем тип
+    addItemToCartAPI(item, itemType);
+  } else {
+    saveCart();
+  }
+  
   showToast(`"${item.title}" добавлен в корзину`, 'success');
 }
 
 function removeFromCart(itemId) {
   if (AppState.cart[itemId]) {
-    delete AppState.cart[itemId];
-    saveCart();
+    // Если пользователь авторизован, удаляем из API
+    if (AppState.user && AppState.cart[itemId].api_id) {
+      removeItemFromCartAPI(itemId);
+    } else {
+      delete AppState.cart[itemId];
+      saveCart();
+    }
     showToast('Товар удален из корзины', 'info');
   }
-}
-
-function clearCart() {
-  AppState.cart = {};
-  saveCart();
-  showToast('Корзина очищена', 'info');
-}
-
-function getCartTotal() {
-  return Object.values(AppState.cart).reduce((total, item) => {
-    return total + (item.price * item.qty);
-  }, 0);
 }
 
 function updateCartQuantity(itemId, newQty) {
@@ -456,10 +782,32 @@ function updateCartQuantity(itemId, newQty) {
     if (newQty <= 0) {
       removeFromCart(itemId);
     } else {
-      AppState.cart[itemId].qty = newQty;
-      saveCart();
+      // Если пользователь авторизован, обновляем в API
+      if (AppState.user && AppState.cart[itemId].api_id) {
+        updateCartItemQuantityAPI(itemId, newQty);
+      } else {
+        AppState.cart[itemId].qty = newQty;
+        saveCart();
+      }
     }
   }
+}
+
+function clearCart() {
+  // Если пользователь авторизован, очищаем в API
+  if (AppState.user) {
+    clearCartAPI();
+  } else {
+    AppState.cart = {};
+    saveCart();
+  }
+  showToast('Корзина очищена', 'info');
+}
+
+function getCartTotal() {
+  return Object.values(AppState.cart).reduce((total, item) => {
+    return total + (item.price * item.qty);
+  }, 0);
 }
 
 // ====================
@@ -1055,25 +1403,92 @@ function renderCartModal() {
     return;
   }
   
-  cartItems.innerHTML = items.map(item => `
-    <div class="cart-item">
-      <div class="thumb">
-        <img src="${item.thumb}" alt="${item.title}" style="width:100%;height:100%;object-fit:cover;">
+  cartItems.innerHTML = items.map(item => {
+    // Используем полные данные, если есть
+    const title = item.title || `Товар #${item.item_id || item.id}`;
+    const thumb = item.thumb || 'https://via.placeholder.com/60x60?text=Товар';
+    const category = item.category || 'Товар';
+    
+    // Цвет категории
+    const categoryColor = getCategoryColor(category);
+    
+    // Форматируем цены
+    const itemPrice = formatPrice(item.price);
+    const itemTotal = formatPrice(item.price * item.qty);
+    
+    return `
+    <div class="cart-item" style="
+      display: flex; gap: 12px; padding: 12px; 
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      align-items: center;
+    ">
+      <!-- Изображение -->
+      <div style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; flex-shrink: 0;">
+        <img src="${thumb}" alt="${title}" 
+             style="width: 100%; height: 100%; object-fit: cover;"
+             onerror="this.src='https://via.placeholder.com/60x60?text=Товар'">
       </div>
-      <div class="item-info">
-        <strong>${item.title}</strong>
-        <div style="color:var(--muted);font-size:13px;">${formatPrice(item.price)} × ${item.qty}</div>
-        <div class="qty">
-          <button data-action="decrease-qty" data-id="${item.id}">−</button>
-          <span>${item.qty} шт.</span>
-          <button data-action="increase-qty" data-id="${item.id}">+</button>
-          <button data-action="remove-from-cart" data-id="${item.id}" style="margin-left:auto;font-size:12px;color:var(--muted);">
+      
+      <!-- Информация -->
+      <div style="flex: 1; min-width: 0;">
+        <!-- Заголовок и цена -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <div>
+            <strong style="display: block; font-size: 14px; margin-bottom: 4px;">${title}</strong>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span style="
+                background: ${categoryColor}; 
+                color: white; padding: 2px 8px; 
+                border-radius: 12px; font-size: 11px;
+              ">${category}</span>
+              ${item.item_type !== 'product' ? 
+                `<span style="font-size:11px;color:#aaa;">
+                  ${item.item_type === 'market' ? '👤 Публикация' : '✍️ Авторское'}
+                </span>` : ''
+              }
+            </div>
+          </div>
+          <div style="font-weight: bold; color: var(--accent-1); font-size: 16px;">
+            ${itemTotal}
+          </div>
+        </div>
+        
+        <!-- Описание (если есть) -->
+        ${item.description ? `
+          <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
+            ${item.description.length > 60 ? item.description.substring(0, 60) + '...' : item.description}
+          </div>
+        ` : ''}
+        
+        <!-- Управление количеством -->
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button data-action="decrease-qty" data-id="${item.id}" 
+                    style="width: 24px; height: 24px; border-radius: 50%; border: none;
+                           background: rgba(255,255,255,0.1); color: white; cursor: pointer;">
+              −
+            </button>
+            <span style="font-weight: bold; min-width: 30px; text-align: center;">${item.qty} шт.</span>
+            <button data-action="increase-qty" data-id="${item.id}"
+                    style="width: 24px; height: 24px; border-radius: 50%; border: none;
+                           background: rgba(255,255,255,0.1); color: white; cursor: pointer;">
+              +
+            </button>
+            <span style="font-size: 13px; color: var(--muted);">
+              ${itemPrice} × ${item.qty}
+            </span>
+          </div>
+          
+          <button data-action="remove-from-cart" data-id="${item.id}" 
+                  style="background: none; border: none; color: #ff6b6b; 
+                         cursor: pointer; font-size: 13px; padding: 4px 8px;">
             Удалить
           </button>
         </div>
       </div>
     </div>
-  `).join('');
+    `;
+  }).join('');
   
   cartTotal.textContent = formatPrice(getCartTotal());
 }
@@ -1387,16 +1802,23 @@ async function handleGlobalClick(e) {
 }
 
 function getItemById(id, type) {
-  switch (type) {
-    case 'product':
-      return AppState.products.find(p => p.id === id);
-    case 'market':
-      return AppState.marketListings.find(l => l.id === id);
-    case 'account':
-      return AppState.accountListings.find(l => l.id === id);
-    default:
-      return null;
+  console.log(`Поиск товара: id=${id}, type=${type}`);
+  
+  let item = null;
+  
+  if (type === 'product') {
+    item = AppState.products.find(p => {
+      console.log(`Сравниваем: p.id=${p.id} (${typeof p.id}) с ${id} (${typeof id})`);
+      return p.id == id || p.id.toString() === id.toString();
+    });
+  } else if (type === 'market') {
+    item = AppState.marketListings.find(l => l.id == id || l.id.toString() === id.toString());
+  } else if (type === 'account') {
+    item = AppState.accountListings.find(a => a.id == id || a.id.toString() === id.toString());
   }
+  
+  console.log('Найден товар:', item);
+  return item;
 }
 
 function setupPaymentListeners() {
@@ -1670,9 +2092,13 @@ async function initApp() {
     // Настраиваем обработчики событий
     setupEventListeners();
     
+    // Обновляем кнопку чата
+    updateChatButton();
+    
     console.log('Приложение успешно инициализировано');
     console.log('Пользователь:', AppState.user ? 'авторизован' : 'не авторизован');
     console.log('Избранных товаров:', AppState.favorites.length);
+    console.log('Товаров в корзине:', Object.keys(AppState.cart).length);
     
     showToast('Данные успешно загружены', 'success');
     
@@ -1687,6 +2113,7 @@ async function initApp() {
     renderReviews();
     updateCartCount();
     setupEventListeners();
+    updateChatButton();
   }
 }
 
@@ -1705,3 +2132,25 @@ window.clearCart = clearCart;
 window.toggleFavorite = toggleFavorite;
 window.isItemFavorited = isItemFavorited;
 window.loadUserFavorites = loadUserFavorites;
+
+// ====================
+// ДОПОЛНИТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ЧАТА
+// ====================
+
+function updateChatButton() {
+  const chatBtn = document.getElementById('chatBtn');
+  if (chatBtn) {
+    chatBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const user = AppState.user;
+      if (!user) {
+        showToast('Для доступа к чату необходимо авторизоваться', 'error');
+        setTimeout(() => {
+          window.location.href = '/auth.html?redirect=/chat.html';
+        }, 1500);
+        return;
+      }
+      window.location.href = '/chat.html';
+    });
+  }
+}
