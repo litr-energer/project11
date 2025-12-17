@@ -6,6 +6,9 @@ from app.schemas.cart_schema import Cart, CartItem, CartItemCreate, CartItemUpda
 from app.services.cart_service import CartService
 from app.repositories.cart_repository import CartRepository
 from app.repositories.cart_item_repository import CartItemRepository
+from app.models.products import ProductModel
+from app.models.listing import ListingModel
+from app.models.author_listing import AuthorListingModel
 
 router = APIRouter(prefix="/carts", tags=["carts"])
 
@@ -45,6 +48,66 @@ async def get_my_cart_items(
     user_id = await get_current_user_id(request)
     cart = cart_service.get_or_create_user_cart(user_id)
     return cart_service.get_cart_items(cart.id, skip, limit)
+
+@router.get("/my/items/detailed")
+async def get_my_cart_items_detailed(
+    request: Request,
+    db: Session = Depends(get_db),
+    cart_service: CartService = Depends(get_cart_service)
+):
+    """Получить элементы корзины с полными данными о товарах"""
+    user_id = await get_current_user_id(request)
+    cart = cart_service.get_or_create_user_cart(user_id)
+    
+    items = cart_service.get_cart_items(cart.id)
+    
+    # Обогащаем данные информацией о товарах
+    detailed_items = []
+    for item in items:
+        item_data = {
+            "id": item.id,
+            "cart_id": item.cart_id,
+            "item_type": item.item_type,
+            "product_id": item.product_id,
+            "listing_id": item.listing_id,
+            "author_listing_id": item.author_listing_id,
+            "quantity": item.quantity,
+            "price": float(item.price),
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+            "title": "Unknown Item",
+            "description": "",
+            "image_url": "https://via.placeholder.com/120x90?text=No+Image",
+            "category": ""
+        }
+        
+        # Загружаем полные данные товара в зависимости от типа
+        if item.item_type == 'product' and item.product_id:
+            product = db.query(ProductModel).filter(ProductModel.id == item.product_id).first()
+            if product:
+                item_data["title"] = product.title
+                item_data["description"] = product.description or ""
+                item_data["image_url"] = product.image_url or "https://via.placeholder.com/120x90?text=Product"
+                item_data["category"] = product.category
+        
+        elif item.item_type == 'listing' and item.listing_id:
+            listing = db.query(ListingModel).filter(ListingModel.id == item.listing_id).first()
+            if listing:
+                item_data["title"] = listing.title
+                item_data["description"] = listing.game_topic
+                item_data["image_url"] = listing.image_url or "https://via.placeholder.com/120x90?text=Listing"
+                item_data["category"] = "Listing"
+        
+        elif item.item_type == 'author_listing' and item.author_listing_id:
+            author_listing = db.query(AuthorListingModel).filter(AuthorListingModel.id == item.author_listing_id).first()
+            if author_listing:
+                item_data["title"] = author_listing.title
+                item_data["description"] = ""
+                item_data["image_url"] = author_listing.image_url or "https://via.placeholder.com/120x90?text=Author+Listing"
+                item_data["category"] = "Author Publication"
+        
+        detailed_items.append(item_data)
+    
+    return detailed_items
 
 @router.post("/my/items", response_model=CartItem)
 async def add_item_to_my_cart(

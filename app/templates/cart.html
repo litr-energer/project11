@@ -26,11 +26,11 @@
             </button>
           </div>
           <div id="authButtons" style="display:flex;gap:8px;align-items:center">
-            <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'">Войти</button>
+            <button id="authBtn" class="btn ghost" onclick="location.href='/auth.html'"ГПВойти</button>
             <button id="registerBtn" class="btn primary" onclick="location.href='/auth.html#register'">Регистрация</button>
           </div>
         </div>
-        <button onclick="location.href='/'" class="btn ghost">Главная</button>
+        <button onclick="location.href='/'" class="btn ghost">ГЛавная</button>
       </nav>
     </div>
   </header>
@@ -65,7 +65,7 @@
       <!-- Итого и оформление заказа -->
       <div id="cartSummary" style="background:rgba(255,255,255,0.02);border-radius:12px;padding:20px">
         <div style="display:flex;justify-content:space-between;margin-bottom:15px">
-          <span style="color:var(--muted)">Стоимость товаров:</span>
+          <span style="color:var(--muted)"><u0421тоимость товаров:</span>
           <span id="subtotal" style="font-weight:bold">0 ₽</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:20px">
@@ -93,7 +93,7 @@
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:5px">
                 <button class="payment-method" data-method="card" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">Карта</button>
                 <button class="payment-method" data-method="paypal" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">PayPal</button>
-                <button class="payment-method" data-method="yoomoney" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">ЮMoney</button>
+                <button class="payment-method" data-method="yoomoney" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">ЮМоней</button>
                 <button class="payment-method" data-method="qiwi" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer">Qiwi</button>
               </div>
               <input type="hidden" id="selectedPaymentMethod" value="card">
@@ -169,7 +169,7 @@
     }
     
     // ====================
-    // ПРОВЕРКА АВТОРИЗАЦИИ
+    // ПОЛОЧЕНИЕ АВТОРИЗАЦИИ
     // ====================
     
     function checkAuth() {
@@ -238,50 +238,44 @@
         const user = cartState.user;
         if (!user) return;
         
-        console.log('Загрузка корзины пользователя:', user.id);
+        console.log('Загружаю корзину с новым API endpointом (detailed):', user.id);
         
-        const response = await fetch(`${API_BASE_URL}/carts/my`, {
+        // Используем новый endpoint для получения детализированных данных
+        const itemsResponse = await fetch(`${API_BASE_URL}/carts/my/items/detailed`, {
           headers: {
             'X-User-Id': user.id.toString()
           }
         });
         
-        if (response.ok) {
-          const cartData = await response.json();
-          console.log('Загружена корзина с сервера:', cartData);
+        if (itemsResponse.ok) {
+          const items = await itemsResponse.json();
           
-          // Загружаем элементы корзины
-          const itemsResponse = await fetch(`${API_BASE_URL}/carts/my/items`, {
-            headers: {
-              'X-User-Id': user.id.toString()
-            }
+          // Преобразуем в локальный формат
+          cartState.items = {};
+          items.forEach(item => {
+            const cartItemId = `cart-${item.id}`;
+            cartState.items[cartItemId] = {
+              id: cartItemId,
+              api_id: item.id,
+              title: item.title,
+              price: item.price,
+              qty: item.quantity,
+              thumb: item.image_url,
+              item_type: item.item_type,
+              item_id: item.product_id || item.listing_id || item.author_listing_id,
+              description: item.description,
+              category: item.category
+            };
           });
           
-          if (itemsResponse.ok) {
-            const items = await itemsResponse.json();
-            
-            // Преобразуем в локальный формат
-            cartState.items = {};
-            items.forEach(item => {
-              const cartItemId = `cart-${item.id}`;
-              cartState.items[cartItemId] = {
-                id: cartItemId,
-                api_id: item.id,
-                title: `Товар #${item.id}`, // В реальном приложении нужно загружать детали товара
-                price: item.price,
-                qty: item.quantity,
-                thumb: 'https://via.placeholder.com/120x90?text=Товар',
-                item_type: item.item_type,
-                item_id: item.product_id || item.listing_id || item.author_listing_id
-              };
-            });
-            
-            updateCartDisplay();
-            console.log('Корзина загружена:', Object.keys(cartState.items).length, 'шт.');
-          }
+          updateCartDisplay();
+          console.log('Корзина загружена:', Object.keys(cartState.items).length, 'шт.');
+        } else if (itemsResponse.status === 401) {
+          console.log('Пользователь не авторизован');
+          loadLocalCart();
         }
       } catch (error) {
-        console.error('Ошибка загрузки корзины:', error);
+        console.error('Ошибка загружки корзины:', error);
         // Показываем локальную корзину как fallback
         loadLocalCart();
       }
@@ -384,7 +378,7 @@
         updateCartDisplay();
         console.log('Локальная корзина загружена:', Object.keys(cartState.items).length, 'шт.');
       } catch (error) {
-        console.error('Ошибка загрузки локальной корзины:', error);
+        console.error('Ошибка загружки локальной корзины:', error);
         cartState.items = {};
         updateCartDisplay();
       }
@@ -495,17 +489,20 @@
             </div>
             <div style="flex:1">
               <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-                <h4 style="margin:0;font-size:16px">${item.title}</h4>
-                <span style="font-weight:bold;font-size:16px">${formatPrice(item.price)}</span>
+                <div style="flex:1;padding-right:15px">
+                  <h4 style="margin:0;font-size:16px">${item.title}</h4>
+                  <p style="color:var(--muted);font-size:12px;margin:3px 0 0 0">${item.category}</p>
+                </div>
+                <span style="font-weight:bold;font-size:16px;white-space:nowrap">${formatPrice(item.price)}</span>
               </div>
-              <p style="color:var(--muted);font-size:13px;margin:0 0 10px 0">Электронное издание</p>
+              ${item.description ? `<p style="color:var(--muted);font-size:13px;margin:0 0 10px 0">${item.description}</p>` : ''}
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <div style="display:flex;align-items:center;gap:10px">
-                  <button class="qty-btn" data-action="decrease" data-id="${item.id}" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer">−</button>
+                  <button class="qty-btn" data-action="decrease" data-id="${item.id}" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer;font-weight:bold">−</button>
                   <span style="font-weight:bold;min-width:30px;text-align:center">${item.qty} шт.</span>
-                  <button class="qty-btn" data-action="increase" data-id="${item.id}" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer">+</button>
+                  <button class="qty-btn" data-action="increase" data-id="${item.id}" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer;font-weight:bold">+</button>
                 </div>
-                <button class="remove-btn" data-action="remove" data-id="${item.id}" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Удалить</button>
+                <button class="remove-btn" data-action="remove" data-id="${item.id}" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline">Удалить</button>
               </div>
             </div>
           </div>
@@ -652,7 +649,7 @@
     }
     
     // ====================
-    // ИНИЦИАЛИЗАЦИЯ
+    // ИНИЦИАЛИЗАЦИЙ
     // ====================
     
     document.addEventListener('DOMContentLoaded', () => {
