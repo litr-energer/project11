@@ -27,12 +27,11 @@ class UserService(BaseService[UserModel]):
         return self.user_repository.get_by_email(email)
     
     def create_user(self, user_data: UserCreate) -> UserModel:
-        # Проверяем, существует ли пользователь с таким email
         existing_user = self.get_by_email(user_data.email)
         if existing_user:
             raise UserAlreadyExistsException(email=user_data.email)
         
-        # Хешируем пароль
+        
         hashed_password = pwd_context.hash(user_data.password)
         user_dict = user_data.dict(exclude={"password"})
         user_dict["hashed_password"] = hashed_password

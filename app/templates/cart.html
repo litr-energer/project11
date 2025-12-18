@@ -30,7 +30,7 @@
             <button id="registerBtn" class="btn primary" onclick="location.href='/auth.html#register'">Регистрация</button>
           </div>
         </div>
-        <button onclick="location.href='/'" class="btn ghost">ГЛавная</button>
+        <button onclick="location.href='/'" class="btn ghost">Главная</button>
       </nav>
     </div>
   </header>
@@ -638,11 +638,7 @@
             // Очищаем форму
             document.getElementById('checkoutName').value = '';
             document.getElementById('checkoutEmail').value = '';
-            
-            // Перенаправляем на страницу успеха
-            setTimeout(() => {
-              window.location.href = '/order-success.html?order=' + order.id;
-            }, 2000);
+  
           }, 1500);
         });
       }
