@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
 
@@ -26,6 +26,24 @@ class OrderUpdate(BaseModel):
 class Order(OrderBase):
     id: int
     creat_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class OrderItemResponse(BaseModel):
+    product_id: int
+    quantity: int
+    price: Decimal
+
+
+class OrderResponse(BaseModel):
+    id: int
+    user_id: int
+    status: str
+    total_price: Decimal
+    created_at: datetime
+    items: Optional[List[OrderItemResponse]] = None
     
     class Config:
         from_attributes = True

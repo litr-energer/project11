@@ -14,7 +14,8 @@ from app.router import (
     cart_router,
     favorite_router,
     review_router,
-    chat_message_router
+    chat_message_router,
+    admin_router  # НОВЫЙ ИМПОРТ
 )
 from app.exceptions.handler import setup_exception_handlers
 import logging
@@ -99,6 +100,7 @@ app.include_router(cart_router.router)
 app.include_router(favorite_router.router)
 app.include_router(review_router.router)
 app.include_router(chat_message_router.router)
+app.include_router(admin_router.router)  # ПОДКЛЮЧЕНИЕ АДМИН-МАРШРУТОВ
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -125,6 +127,9 @@ async def read_page4(request: Request):
 async def read_page5(request: Request):
     return templates.TemplateResponse("favorite.html", {"request": request})
 
+@app.get("/admin.html", response_class=HTMLResponse)  # НОВЫЙ МАРШРУТ ДЛЯ АДМИН-ПАНЕЛИ
+async def read_admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 @app.get("/health")
 def health_check():
