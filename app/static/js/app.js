@@ -1223,6 +1223,7 @@ function renderProducts() {
           <img src="${product.thumb}" 
                alt="${product.title}"
                loading="lazy"
+               style="width: 100%; height: 100%; object-fit: cover;" 
                onerror="this.onerror=null; this.src='https://via.placeholder.com/400x200?text=${encodeURIComponent(product.title.substring(0, 20))}'">
           ${!product.is_active ? `<div style="position: absolute; top: 4px; right: 4px; background: rgba(220, 53, 69, 0.9); color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">Неактивен</div>` : ''}
         </div>
